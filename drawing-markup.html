@@ -1,0 +1,2275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing Markup Tool - Enhanced Edition</title>
+    
+    <!-- Ant Design CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.12.0/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.12.0/dist/antd.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    
+    <!-- HTML2Canvas for export -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    <!-- JSZip for multi-page PNG download -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    
+    <!-- PDF.js for PDF upload -->
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    
+    <!-- Browser Image Compression -->
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header - Figma Style */
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e1e4e8;
+            padding: 12px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .logo i {
+            color: #3b82f6;
+            font-size: 20px;
+        }
+        
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 8px 14px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #ffffff;
+            color: #374151;
+        }
+        
+        .btn:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+        
+        .btn:active {
+            background: #f3f4f6;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .divider {
+            width: 1px;
+            height: 24px;
+            background: #e1e4e8;
+            margin: 0 4px;
+        }
+        
+        .size-input {
+            width: 60px;
+            padding: 6px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+        }
+        
+        .select-input {
+            width: 160px;
+            padding: 6px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            font-size: 13px;
+            background: #ffffff;
+            color: #374151;
+        }
+        
+        .page-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+        
+        .page-indicator {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5563;
+            min-width: 82px;
+            text-align: center;
+        }
+        
+        /* Main Canvas - Pixel 7 Style */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #f5f7fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Rulers */
+        .ruler-horizontal {
+            position: absolute;
+            top: 0;
+            left: 30px;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+            border-bottom: 1px solid #d1d5db;
+            z-index: 50;
+            overflow: hidden;
+        }
+        
+        .ruler-vertical {
+            position: absolute;
+            left: 0;
+            top: 30px;
+            bottom: 0;
+            width: 30px;
+            background: linear-gradient(90deg, #ffffff 0%, #f3f4f6 100%);
+            border-right: 1px solid #d1d5db;
+            z-index: 50;
+            overflow: hidden;
+        }
+        
+        .ruler-corner {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 30px;
+            height: 30px;
+            background: #e5e7eb;
+            border-right: 1px solid #d1d5db;
+            border-bottom: 1px solid #d1d5db;
+            z-index: 51;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ruler-corner i {
+            color: #9ca3af;
+            font-size: 10px;
+        }
+        
+        .ruler-mark {
+            position: absolute;
+            background: #6b7280;
+        }
+        
+        .ruler-horizontal .ruler-mark {
+            width: 1px;
+            height: 5px;
+            bottom: 0;
+        }
+        
+        .ruler-horizontal .ruler-mark.major {
+            height: 8px;
+        }
+        
+        .ruler-vertical .ruler-mark {
+            height: 1px;
+            width: 5px;
+            right: 0;
+        }
+        
+        .ruler-vertical .ruler-mark.major {
+            width: 8px;
+        }
+        
+        .ruler-label {
+            position: absolute;
+            font-size: 9px;
+            color: #6b7280;
+            font-weight: 500;
+            user-select: none;
+        }
+        
+        .ruler-horizontal .ruler-label {
+            bottom: 10px;
+            transform: translateX(-50%);
+        }
+        
+        .ruler-vertical .ruler-label {
+            right: 4px;
+            transform: translateY(-50%) rotate(-90deg);
+            transform-origin: right center;
+        }
+        
+        .canvas-workspace {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .device-frame {
+            background: #1f2937;
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .device-screen {
+            border-radius: 32px;
+            overflow: hidden;
+            background: #ffffff;
+            position: relative;
+        }
+        
+        .canvas-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: grab;
+            transition: transform 0.1s ease-out;
+            background: #ffffff;
+        }
+        
+        .canvas-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            background-image: radial-gradient(circle, #000000 0.7px, transparent 0.7px);
+            background-size: 15px 15px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .canvas-wrapper.dragging {
+            cursor: grabbing;
+        }
+        
+        .drawing-image {
+            display: block;
+            max-width: none;
+            user-select: none;
+            -webkit-user-drag: none;
+            pointer-events: none;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* PNG Overlay */
+        .png-overlay {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            z-index: 5;
+            border: 2px dashed transparent;
+            transition: border-color 0.2s;
+        }
+        
+        .png-overlay:hover {
+            border-color: #3b82f6;
+        }
+        
+        .png-overlay.selected {
+            border-color: #3b82f6;
+        }
+        
+        .png-overlay img {
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .resize-handle {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            width: 10px;
+            height: 10px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: nwse-resize;
+        }
+        
+        /* Hide decorations during export */
+        .exporting .png-overlay {
+            border: none !important;
+        }
+        
+        .exporting .png-overlay .resize-handle {
+            display: none !important;
+        }
+        
+        .exporting .text-element {
+            border: none !important;
+            background: transparent !important;
+        }
+        
+        /* Text Element */
+        .text-element {
+            position: absolute;
+            cursor: move;
+            padding: 8px 12px;
+            background: transparent;
+            z-index: 6;
+            border: 2px dashed transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .text-element:hover {
+            border-color: #3b82f6;
+        }
+        
+        .text-element.selected {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+        
+        /* Markers */
+        .marker {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            transform-origin: center;
+            z-index: 10;
+        }
+        
+        .marker.circle {
+            border-radius: 50%;
+        }
+        
+        .marker.rectangle {
+            border-radius: 4px;
+        }
+        
+        .marker:hover {
+            transform: scale(1.15);
+            filter: brightness(1.1);
+        }
+        
+        .marker.dragging-marker {
+            cursor: grabbing;
+            opacity: 0.8;
+        }
+        
+        /* Upload Overlay */
+        .upload-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f7fa;
+            z-index: 10;
+        }
+        
+        .upload-box {
+            text-align: center;
+            padding: 60px;
+            background: #ffffff;
+            border-radius: 16px;
+            border: 2px dashed #d1d5db;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-box:hover {
+            border-color: #3b82f6;
+            background: #f9fafb;
+        }
+        
+        .upload-box i {
+            font-size: 48px;
+            color: #3b82f6;
+            margin-bottom: 16px;
+        }
+        
+        .upload-box h2 {
+            color: #1f2937;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .upload-box p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        /* Zoom Controls */
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+        
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #e1e4e8;
+            color: #374151;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .zoom-btn:hover {
+            background: #f9fafb;
+        }
+        
+        .zoom-level {
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            color: #374151;
+            font-weight: 600;
+            font-size: 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-content {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            color: #1f2937;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: #f9fafb;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            color: #1f2937;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: #ffffff;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-actions .btn {
+            flex: 1;
+        }
+        
+        /* Compression Modal */
+        .compression-info {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        
+        .size-comparison {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 12px;
+        }
+        
+        .size-item {
+            text-align: center;
+        }
+        
+        .size-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        
+        .size-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .size-value.compressed {
+            color: #10b981;
+        }
+        
+        .savings {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        input[type="color"] {
+            width: 60px;
+            height: 36px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" x-data="drawingApp()" @keydown.escape="cancelTextMode()">
+        <!-- Header Toolbar -->
+        <div class="header">
+            <div class="logo">
+                <span><img width="126" height="30"
+                      src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/4QAiRXhpZgAATU0AKgAAAAgAAQESAAMAAAABAAEAAAAAAAD/2wBDAAIBAQIBAQICAgICAgICAwUDAwMDAwYEBAMFBwYHBwcGBwcICQsJCAgKCAcHCg0KCgsMDAwMBwkODw0MDgsMDAz/2wBDAQICAgMDAwYDAwYMCAcIDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAz/wAARCAC/ArkDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9/KKKKACiiigAooooAKKKKACiikLYNAC0UitmloAKKKCcUAFFIGytCtmgBaKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKCcUAFQ310tlC00hCpGpYkngVLuryD9sf4s/8K7+G0lrbyKuoarmCFSeo43H8Mj8668DhZ4mvGhDds8rOs0p5dgqmMq7RX49PxMPXP2+fDukavdWq6fqtx9nkMReNI9rEdx8/Sqv/AA8L8P8A/QH1r/viL/4uvkdBsQL/ABdWPck9adX7BT4Dy3lXMne3c/mCp4u59KbcJR5emh9bH/goX4f/AOgPrX/fEX/xdH/Dwvw+f+YPrX/fEX/xdfJQXdSMNvUj1PsPX/PrV/6i5Wuj+8n/AIi5n6+1H7j6o1//AIKTeF/DOkXF/eaXrUdrap5khEcXC5AP/LQete8/Dvx1p/xK8HafrmlzLNY6pAtxCwOcqwyOlfjh+2H46+z6Xa+HIWxJdfv7oA/wDG1D7Nls/QV9bf8ABFn9pP8A4SDwTqHw71Kf/TNDP2nTQx/1lsxIZRzn5CF7fxivL4q4BpYPLFmGDT0eq8u5+geHviLjMwxv1TM5L3vh9ex96ZopN1KDkV+S3P3YKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoprNhl6f/AFqNxz2oAdRQDRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFBGRRSP0oAivLlbKJpHbaqjLEnoB618C/tOfFX/AIWn8V7iaOQyWGmt5NsM8AjIZh9cD8q+mv20fi9/wrP4WTW9rIq6lq2baAMegP3j+AP618J282yNeuGG4Hufr+Oa/UPD/JeZSx9ReS/Vn88+MvEzco5RRfnK34I0YpdiqG5OOT6mpV+es1bn5v4q0rVWCZP8VfqLifz+orZD1XbUWo30GmWE1zcMEht0MkjHoFHJH4nFTd/6+leU/tW+O/7C8Hw6PGzLNrH+tx1WIYz+JyMfQ1vhaDrVVBGkY8zPB/G/iW48feNtQ1a4OWu5MqP7ijIA/L+ddb+zl8XLz9nz4yaD4ssfvabcqLpc4EtsxAlX8flP4VxlnbfMy7VwMEY9P8itGO08xdu0FcYIPRq+xxmEp1cK8HU1jJWPUwOKnha0a1J2cWn9x+83g3xXaeNvC9hq1hKs1pqECTROD1DDIrUXrXxR/wAEg/2iG8R+BbzwDqkxa80LEmnsx5lt2LZXrnK4Hbo3WvtZGya/jzPMrqZdjp4Sf2Xp5rof2jw3nNPNMvp4yHVa+T6jqKKK8k90KKKKACik31HHeRyyMiSIzJ95Q2SPrRvsJySdmS0U0yYpwOaBhRRRQAUZopG/KgDxb9un9urwf+wF8Gv+E08YR31xZyXSWkFvZqGmndv7oPYcZ+or45P/AAdCfBsHH/CHePGI4IW3j4P518Zf8HEH7YY+Pn7XK+AdLvDceH/hqn2WZVP7uW/ba0uecHZtQD6n8Pz58gHO794zEsWYDJzXrYfARlBOW55tXGSU2o7H71/Dn/g5V+DfxC+Imh+H/wDhG/GGlf25eR2S3d3DGsULucKW56V+itvOtzAsiMsiSDcrKchgehFfx/GHlVVjDuZdsigBonz8rg9mB7+5r+kr/gij+2Mf2wP2G/Dt1qEqnxR4RH/CP61F382EbUkxyQHQDqeSprDGYVU1eJphsS5u0j66ooBzRXAdwUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHgn/BUXxrrHw2/wCCe/xe8Q6BqV7o+taL4aurqzvLSUxTQSKuQysOR0x9Ca/nWu/+CjP7QkVlKv8AwvD4pH92VJ/4SCf5sLxkZx+lf0Lf8Fefm/4Jl/Gxe0nhe6Q/RgAf51/MDPIZrJmP8UW4494wf616mXwjKLuebjJOMlY/qn/4J6eJtS8bfsRfC3WdY1C81TVdU8N2dzdXV1KZJZ5GjBLMx5J5r2WvDf8AgmeNv/BP/wCD/wD2Ktj/AOihXuVedU+JnfT+FBRRRUFhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFBOKACoruVYImdjtVR1p4fNePftp/GpfhF8JZ/s8m3VNVP2S0XIzluC3XooPUeorqwOFnia8aFPeTsebnGZU8vwdTF1XZRV/8j5R/a9+LbfFH4vXXlS+ZYaO5trcZ+XcPvN+PH5V5jDPluvb8qzYbk/xMzOPvE9WOTlj7k5p/wBp5+vFf01luWxwWGjQhskvvP4czfM55jjamMqvWTf3G3pI+1XPbavWts4X6Vn6FZLZ26tg7m61czyMnqcClU3OKOoTyKsTMzBY1BLsf4R1z+lfI/xg8Yv8RviBe3jOzW8TeTbg/wBxeAfxr6A/aG8SXnhn4TXVxaxSKt7Oli8xHywb8/ePbp2zXzLBaqo2qMBeBnqR7/rX0OQ0YuLrdtDqp0ZQ+JGhocYnTb/EuOta0NnxWbog+zXqlvu98V00NurfMOh6V7FSTuZzOr/Zx+Kt18B/jHovia3YrHZzCO5A6NA5AcfXpjPHWv2Z8K+IbfxX4es9StJFmtr2FZo3U5yCM1+If2ISrtO0qw2sD3Br9FP+CVfx8/4Sz4cXPg3UJmbUPDuPsjMR++tm3bQOc7l2nPGBuHJ7fivilkbq0o5lSWsdJeh+2eD/ABJ7DFSyms9J6x9ex9cUU3zOaBJlsc1+Gn9H3Q6muPnWmtcqmd3AHevE/wBov9tPQfhFp01pp0keqa6cpHBGdyRN23nPA+meldeCwNfGVFSw8XJvsebm2cYTLaLr4yail36+hrftZ/tJWP7OfgVbpv3mragGi0+Ej/WOMZJ7YGVz354zzXw/8Kv2vPFfw/8AijN4jub241CPUnDX1ozfunGT93PQjJwOM19FeCfiZ4d/bs+HU3hrxZFbaf4ijJaIr/A/O14ieTjHI4zxXyD+0B8M9W/Zy8TyaXrELStz9kusfu7oZ+/n+8MjI6c96/WuDcpwMVVyzHQtXlo79V5M/nvxBz7M61WjnOWVL4aO3L0fXmR+oHwg+L+j/Gfwhb6xo1ys0My/MoI3RN3VhngiuuU5Ffj3+zd+1B4g/Zx+IX9q2c8lzZXJC32nsSI5l5wVHQMMnHrX6vfBv4o6b8afhlpHijSZPNsNWiLxk9QVZkdT7hlYfhXxnF3CNbJq196cnZPz7H6twHxxRz3D+zlpWiryXltc6aiiivjT9BCvHP2+f2ptP/Yz/ZQ8YfEK/kUPotkwsYiebm7kGyGMDqcuwOAegNex1+KP/Bzl+2H/AMJZ8QvDHwa0u6H2Pw7jW9aRCf3tw+BbqecYQCQ4Izk9a2w9PnqWMa9Tlhc/LPXPE194w8TaprGqTyXWpatcyXt1O5yZpHYlifcHj6KK6D4PfBzxF8d/Et7pPhnT5NRvtP0251adEUny7eBcu59gWX865GNd4YB8cZ57HOST+p+pr9rP+DZ39jS30f4G+MPitrlks0vjpzo2lrMo+XToy3mEDGf3rMuTnBEY4HOfcrVVRiePRpyqSPxZjfzoF7rIob2bjB/Jt35Cvuz/AIN//wBsP/hmv9tCPw1qV20Ph34kQjT7nef3a3Sn9xJ6BslhnuCa8M/4KW/stzfse/tl+MvCPl+Rpf2tr7Scjg2kzF0A6DglhwOmK8O0fW77w7rFpqFhM9ve6fMlzBIhwVlQ5Q/zqp8tWlqEb06h/X0DkUV4F/wTS/axtf2yf2PvCnjGOZZNQ+zrYaoq9EuogFk4JJ54PJ7177XzsouLsz3IyurhRRRUlBQaKKAPCP2yP+Cjfwv/AGELzQ4PiLqt5preIlley8i1abeIyobOOmN6/XNcR+zl/wAFovgP+1T8YNJ8C+D/ABDqF54i1rzPssE1g0SvsRnb5s46L+tfD/8AwdWJnUvhD/CXN6hI64zCf6V+bv7Cf7ULfsbftMaJ8SI9L/tm78P2l41tZ7tqSTy20kUe4/3QzgkAgn1FehRwftKXMcNTEuFRxP6dfjt+0z4D/Zn8Mtq3jnxTo/huz2M6fa7hVkmA67E+83UdBxkV8deMv+Dkj9nXw5qMkNhceJ9djjyPPtNOPlt9CxGa/Db44/H3x9+2R8V59f8AF2p6h4n8Qaox+zxKGlSBc/6uGLkbR09eBkmun0H/AIJ6fHTxJ4eXVLX4S+Orq1xlJhpbqpX1AyMflWkMDBL32Zyxc2/dWh+3Pwp/4OIf2b/iXrENjda7q3hma4OEbVbExRk/7wJ6cZ47ivsv4dfFDw/8XPDNvrXhnWNP1vS7pd0VzaSiRGH4dPoea/kt8aeBNa+Hmpy6Z4h0m+0e7U7ZLfULYxtn0yw/lXvH/BOb/got40/4J9/F+x1TSbq71HwfcSRwazoEkxME0GSDImT8rx7iR65PBwKKmBjy81NhTxj5rTR/To84iBLMFVQWJPAA9c184/tF/wDBW74B/swalJYeJPHmnTanCCZLPTgbyWPGOG2cDOeMnsa/Lz/grl/wXM1j9oi4PgL4N6pqWi+C5LYHUtXgXyb7VJGAJgQknZGnIPGW3dRivz1+GvwW8WfG3WmtfCnhvX/EU7N+8/s+1e62OezucnJwepPQ9Kxp4O6vN2NKmL1tA/ci4/4OavgBHqRijsfGU9uDjz107j64zXsn7P8A/wAFtf2df2iNdt9L0zxtHpGp3WBFb6xCbMyk9lZvl447jqK/CPxH/wAEyv2gvCWif2pqHwj8bw2UalnmSzdwi+pUHNeLaxpU+lXs1jfWckd3andJa3AMc8Z7ZB+Ze/Q849q6vqNKS916mH1ypF+8j+vKzv4dStI7i2miuIJlDJJG4dHB6EEcEVMDmvwd/wCCKP8AwWB1z4BfEjS/hb8QtWutW8D61IttpV5ckvNpExJ2x78geW27kEE/IMEc5/eCGTzYlYMrKwyCvQivNrUXSdmehRrKoroHk2sB3PNYvjz4leH/AIW6BJqniTWtN0XT4VLPcXk6wpx1xk8/hXN/tS+LfFXgL9n3xZrXgnTbPWPFOl6bLc6daXas0MsqDIDKrKWGATgMM1/MN+0r+1t8SP2vfGtxrXxI8TanrF5IzD7HI5jtbD5sGCKCPAGCvoT0yTVYfDup1IrVnT2R+9PxY/4L6/s0/CvVZbFfGVx4huoc7l0iye4UEdtx2jn2z0Neap/wc0/AlrzY2j+OVhzjzf7OGMeuN1fjn8F/2A/jN8f7KO48GfDHxVqVjJgJcLaeXAoOcHLkYBx+lelat/wRS/ac8PWf2yT4UapcBQSwt9QilkP/AABSTXZ9VorSUtTl+sVnrY/Zn4Q/8F2v2bfi/qtvYw+NW0O6uiFRdXtGtlLHtu5H5+tfWvh7xNp/i7R7fUNKvrTUbG6XfFcW0okjkX1DLkGv5LfiT8KvEXwk16TR/Fmg6t4fvslXgv7NogxHXB43Yz2IxkV9If8ABM3/AIKs+Mv2AfiZYw319qGtfDS6kS31fTJ5WuI7aHdgTQEnKOpfnqMHkHjEVMEnHmpsqGMafLNH9J6tk0pOBWL8O/HOnfEzwRpfiHSbqO80zWrWO9tZo+VeN13Lz688++a2WOBXnWex6Cd9T4++K3/BdD9nn4L/ABL1rwnrviTU4da0C7ayvYo9OdxFIOoznmvX/wBj39uf4f8A7dngzUte+HepXF/p+j3osbtri2aFkkKLJgA9eG654x0r+cz/AIKOFo/2+vjJnazHxVdlQTjkonT8q9M/ZU/4Kc6z+xd+wr4w8A+BWlt/G/jrxTJeHUcYGj2P2aCMNGMgmV9rYbOF2ng5GPTlgVyKUd2eb9calys/df8AaZ/4KRfBn9ke7ks/G3jbS9P1ONC50+NvOusDHVF6HnocV5B+z/8A8F3Pgj+0x8c9D8A+Fm8ST6t4gnMFtLPYGKEkd85r+d42+s/EvxXJNJ/aniPWtQkMkskge6up3J6scHn8hX17/wAEkP2d/iJ4T/4KHfC3WNU8E+MLDS7bU90txcabLHDEm087jgelKWDjCN29Rxxk5TsloftR/wAFeD/xrO+NH/YtXH/stfy/ls6d/wBsV/8ARQr+nz/grsDH/wAEyvjR/wBi1c/qRX8wbLjT/wDtiv8A6J/+tWuXfCyMd8SP6nf+Cag2/sB/B8D/AKFSw/8ARK17hu5rxL/gm4mz9gb4Phf+hT08/wDkBa9qY+WOleXV+N+p6FP4EE8vlj+fGc+1fM/7Tn/BXv4F/sjfEpvCPjDxU0evRxiSa2srZro22f4ZCpwre1eB/wDBY7/gtDp/7JWiXXw/+HN3bat8Tb+MpcTxPvi0CNsfOxBGZOTj+7tORX4W6dF4i+MPxE8mH+1PFHirxLekbRmS61O4kPXPYc9egrrw2DclzVNEc1fFcrtE/oa8If8ABe/9nXx94r0/Q9F1zxBqerapMsFtbW+jyPJIxOOgPQZGT2r628WePNP8EeB7/wARam01tpum2jXtwTGd8caruPy+uO1fDn/BHP8A4I66b+xP4VtvGnjW3t9S+J2pwKegaHQ0OSY48jPmHIDsSR8i4C4OfrT9sCMf8Mq/ET/sX73v/wBMWrnqRp86jE2pym48zPmOP/g4i/ZjcH/iqtU3rnK/2c3BBI659RX1d+zr+0H4a/ak+EGk+OfCN1JeeHtaEhtZpIjGzhJGjPB/2lNfyVWrb7eBG2lc46D/AJ6Mf6V/SX/wQYJP/BJz4Qr2W0vQP/BhdGurF4WNOClEww2IlOXKz7BBopFGKWvPO44z9oD49eG/2ZfhLrHjbxbdvY+H9DiEt1MkZkZQSFGB9TXykf8Ag4b/AGYguf8AhLNU74zprjOBn1/zmus/4Lkj/jVt8WP+wdHj/v8Axiv5rtYG/TrkfdDRsSAPReP5frXdhcLGpFtnDiMRKE7I/rx8G+LbPx54R0vXNNkMmn6xaRXts7LtZo5EDqSO3BFZPxu+Mmifs+/CnXfGniSaS30Hw7aNeXsscZdkRcDIH41j/soDd+y58N2/veGNNYj62sZry/8A4K88f8E0PjN2/wCKbmHH1WuOMU6nL5nU5tQ5jyv/AIiJ/wBmEruHirV8YBBOluoOcY5J9xX2J4T+KOj+NvhxpviyxvoU0PVLNL6G5uGEKCJwCCxbheD3r+RUIZbLbu4mjRDnkJmMHdj0G0dPWvrL9sz/AIKp+N/2lPhX4T+Hei3194V8A+FtFttNnsoXMcmszRxoGkmcHGzjCBQpALZLcY9Spl1muVnFTxvc/Z746/8ABcf9nb4Da5c6ZeeMG1vULUsssOjwG68thjgsCBz2+hryW0/4OZvgHPfLHJpvjS2hY4E0mnjaR64Br8Tfgz+y58Qvj9c+V4I8D+IvEEakAmwsS8as2cZkPXOD1J6Gu68b/wDBMz9oH4b6NJqGrfCPxtZ2kYy0y2hlVR7hTT+p0Vo2L61V6I/f39nj/grV8Bf2m9Vh0/w54902HVLgDy7LUAbSaQnsu75Tjvg9xX0dHL5sSsu1gwyCDkV/IVdWFzoGpPbXMd1a3lo4LoytHPA/OCRw69D0Pbmv0d/4JH/8Fx/EXwB8R6b4A+Kuo3Wv+Cbxo7ez1W6Jku9HYkgbnyAYjnoVyNnX1wq4FpXg7mlPGJvlnufu3nNFVtI1a217TLe+s547qzvIlmgljO5ZUYAqwPoQc1ZrzzuCiiigAooooAKax5FOpG5FAEV1OttE0jEKq8sSeAPWvzf/AG0vjU/xb+M90sMjPpuhZtLQZ+Ut/G/HqQPyFfX37cHxvj+DnwZvDDKq6pqn+i2y9/mGCfw9fevzZhuWaP5izEsWZm6sx6mv1rw1yJTlLMay0Wkf1Z/PvjPxM4qGUUZb6yt+CL6zbf73YZrQ8PWn9p6mqj5gnJPasNLjaSW+6AfxrtvBmnf2bpYl24kuAG57D/Jr9dxkvZx16n87wirG0R8q4+70ApMMzbQu7cMfX0A96aZOCeeOa779m74dH4mfFays5Iz9ks2+0zk9Pkxgfjk/lXzmOxkcNh5Yipskezk+Xzx2LhhKe8ml/meqaz+x5b+Ov2INX0O4hVtY1S3bUo3YcrOo3Rjpn26d6/LG40qbTbqS3ulZLm3YxSowwUZeCK/fSC2W3gWJVAjUBQPQV+Tv/BSz9n//AIVB+0VeX1pBs0vxKDew4HAkz+8HTHUivl/DPiaU8bWwld/xHzL17H7b4l8I08Jl2HxWHX8NKMrdfP7z5xhh2sMda6nRx9ptwv8AEnXNYlrCG57H7p9R61saIxt7pd33W9K/aqm2h+D1Hoa0Wn71B4r0D9nH4oXHwL+MOj+IIWby4ZPJuVB4aF8B/wAenX3rkIIcpu6L1yatQ2LXRWOMNI8xEaoq5aQt0Ue+a8LMqdKvh50a3wtO5tluMrYbFQr0Pii01b+up+yOhazB4j0W1vrZ1kt7qNZUYHOQRmvOfjp+1t4T+Ax+z6pdSS6m0fmR2UC7pWHbPOB+JqP9j7w3rngv9n3RbPxE3+nQwZ2EndEnUKcjqBXwH+0h8RpPiP8AHrxPqkcm+E3rWkADfeij+Vc/ju6V/PnDPC9LMcyqYecr04dV17H9RcaccYjKcmo4qlG1WrbR9NNWelfGL9vLxZ8Tlms9P/4kOmyAgiI5mkU9Mt279PWvFzK11ctJI7M0n3mZjlvcnrmovCvh3UPF2qCx0myutQuuvlwpuZfqas+P9G1T4TMseu6ddafPN/q0mTbuP8q/bMty/L8DJYXCpRk/vZ/MubZpm+ap4vGuUo331sgk8av8PZYdUhuHtby1+a22NlyRj/62a+kvhN8X/Cv/AAUJ+F8ngvxitvY+LIIi9vKuA0vvGeuRgbhgdRjNfDuua3Nq909xcM2Qu5EH8I9v0rrv2bvhZ4h+LHxo0bTvDdxJY6hHKJmvoyV+wopBMhIB57Y6HJo4m4fw88I8bUn7OpDVS7Nd/wAj2OC83xWGxSwUI+0p1bKUOmvVem56D4W/4J3+N9U+PM3g+9t5bbTLR1ll1ZcmJrYk7SjYyWO1hggciv0t+E3w1074P/DrSvDekx+XYaTEY4xjqSxZifcsxJ9zWtotnJZ6XbxTzefNHEqPKVwZGAwW/Hriri9K/A+IuKsbm/JHEvSC0ts3tc/qThXgzA5Hz1MKvenvfdLe33hRRSHr/wDWr5k+yOW+OHxY074F/CPxF4u1aVYdP8P2Mt5KzHg7VyB+JwPxr+U/4/8Axr1L9or42eKPG+rTSTXfibUJb5C+f3cTMRGgySQoA4BJ6mv2I/4OYf2z/wDhDPhbofwY0a4/4mfi0NqOtGJsNbWMf3V68NI3TIIwp49PxKlYyOcAKxAwP4U+VcL+HP517GX0rR5zysdUblyI6H4PfDHUvjd8VvD/AIP0ePzdS8S3sdhEuCfldgGP4Cv6sf2dPg5pv7P3wO8L+C9LiWGz8N6dDZALjllUbm4AHLZPTvX4Of8ABBOH4a+BP2nbz4hfEjxVoXh2HwraldMh1GYRmad9wZ1yOdm1Txj7w61+0EX/AAU1+AKRLu+LPg7cQCd18M/yrPMOaUlGxrg+WMeZs+I/+Dm79lFPFXwd8N/FjT7Pdd+Grj+zdWZQNz20pUo/TOUKsMk4AbpX4osdpGG5x1HpnIr+lb9o79sn9nH9pH4H+JvAupfFbwW9r4nsJbHP21CY3ZDscZBAKsAQfav5s/EekR+HfE2pabFeW2oR6bcyWy3Nu26OdUYhXH1XFb4CcuRxaMcVGPNzJn6Uf8G1n7Y6fDD9ofV/hNq100em+O42vdLDtiOC8iyWjXt+8V+BjJKDmv3OXjH0r+Rf4cePtW+FPxB0PxRoU72uteHb+HULGVSeJY23bTjB2lQ+QCO3Nf1TfsnftC6T+1T+zz4V8faNKsln4isI7hlH/LKXGJEI7YYEY9MVxY+jZ8yOjBVuZcrPRKKKK4TuCiiigD8c/wDg6sH/ABM/g77tff8AtKvyDsbSW8nt4IMtNcGOKFcZ3ysyiMfix/nX69/8HV7bdS+Dvt9uP6xV+cn/AATw8FW/xG/bl+Eui3iebZ3niazWWPj5gp3jqD3Ufma9rCu1C54+I1r2P3S/4JJ/8Ep/B/7G/wAD9F1jXNEsNU+I+r28V5qGoXMSytZsU+WGIEfIq5J7ncx54GPtUoC2fSkRdgp1eRUqOcuZnq06ajGyPnn/AIKF/wDBPTwX+3Z8E9U0XVtKtIvEEcMkul6nFGiXEE+0EAuVOVYqoOew4xX8yvibwreeBfFmpaDqcarqWg3kun3qYICzxMQ2Ae2CuM571/Xc5OfwNfzC/wDBVzw9b+Ff+CjfxhtLVPLhGvvKFwPvPHGzdPc16GWybk0zhx0UlzIw/wDgn9+yHeftx/tVeGfh3aSSQ2Ny5vdWnB5gsIf9aQezZdQOo5PB4r+ln9nX9mLwT+yv8OrHwx4J0Gx0fTrOMITFEBLcMBy8jdWY8nn14r8h/wDg1l8HWt9+0R8VtaePddaXoNnawuf4Fnndnx9fIX9a/bfoM1ljqj9pyl4OnHk5gxk1+Z//AAcB/wDBNrw98Qv2btY+LnhPR7XT/GHgtTqOpNbRqi6jZrgylwBlnQDIwRwWyD2/TCuH/ab0W38Sfs4+PtPul8y1vfDuoQSrgfMrW0gPX61x0ZOD0OqtFSjqfyZGXkNbzNuU/aIXQ7djBiyMP9ofL+Zr+of/AIJefG6b9oX9gT4YeKrqZbi9vdGjiuXGeZIiYm6kn+D1r+XDS332Vm33dojYAdOCD+uAPpX9F/8AwbzXLT/8Er/Aqt923u9QiX/dF3Jj+depmEVypnBgX7zR9tuoljKsAQw5BGcjvXyJ8JP+CJ/wT+GP7Rnir4jzaENa1DXtTbUrOxvQr2eks2S4iTaMgnBwxbG0e9fXTMwC7cdecjNfNP7Zv/BWb4N/sPTzWPirxB9r16NCw0rT18+4BGPlfHCE56HmvNpud7RO+fL9o+lLGwg0mzjt7WCK3t4RtjiiQIiD0AHAqT+LOGr8hfGH/B1XYpft/wAI98I7q6syT5cl/rC27sOx2iM/0x71h/8AEVJ4gY/L8HdLIP8A1HW4/wDIdafVar6Gf1qmtLn6Qf8ABQX9iLwn+27+z3rnh3XNKtptUS2km0q+2Bbi0uFXKFXwTglQCOhr+YTxF4cuPDHia+0fUPmvNLuZLK84wJWRyGBHTBwM4x0FfrFH/wAHT+r4zN8HbLbg8x64WI/Ax1+VnxS8bN8R/iL4h8QNbrZtrmozaiIBJ5nkiQ525wPU16OBhOCcZ7HDiqkZ2cT94v8Ag2z+MN38Sf8AgnXDo99dNdXHgnW7jSYmckusBSOaMEk9jI4GMDAH1P6AsMivy1/4NX5Sf2bfipH/AAr4riYfjZxD+lfqWeleZW0qM9DD/wANH8tP/BSANF+378ZOjf8AFV3JwR14Sud/ZC/Zd1v9sn9orw78OvD+VvNakJnuGG5bK1TmWQ45G0Ec+/euk/4KPjH7f3xib/qaronPptU194f8Gs3wotNZ+LHxc8bTRK11olhYaTZyED90LhppJccdf9HQfTPBzx7FWo40Lnlwi5VbH6Yfsef8E8Phf+xZ4As9H8K+HbFr6ONBdapdQpLd3cig/OXxxyzYAA6969zC4pEFOrw3Jvc9iMUtEfNv/BX1v+NaXxmXs3hm4/mtfzCE507/ALZAf+QK/p9/4K9R7v8Agmb8bG7xeFLyQfVVDD9QK/mDuV8i3dBuYKm1fUnZtAr1cu+BnnYz41c/qg/4JwNt/YH+D/qfCWn/APohK+LP+CyP/Bbi0+A1vqHwy+FeoQ3njKRTFqmsQsHh0ZDwVQg8ynnnkLt6HNeEftE/8FrYfgv+wH8MvhJ8Kb5LjxhL4S0+21jWkbZHo6mBQ8ac/wCt4IzzjHTmvyxubybULua4nkku7m4LzySTHc00hyWdj33YFRRwTlNymOtiFy8sTa0rQde+MHj2GwsodQ8SeJvEd0dsS5kur53YZkJ5OASN31GMV+93/BHT/gjnpf7FPha28aeNLe31T4n6lGGMu0NFpMZB/dRgjKscjccnlR05r5Q/4Nlpvg/fePvFEOrWcTfFyOVZ9KuLxlZTZFDn7OMZDg53HJ42YAIOf2qHFZ4ys78iKwtBNc8hcV5v+2D8v7KnxF/2fDt8fygevSK82/bFO39lH4jf9i5ff+iHrhh8SO6p8LP5PrGPMUP+8P1JP9a/pM/4INr5f/BKL4Sgf8+t7/6cLmv5srN9sMXsVP8AKv6T/wDghENv/BKj4TL6Wt7/AOl9zXrZgl7NHm4L42fXgGKKQnBFLXjLY9Q+S/8AguWcf8Esvi0f7umxn/yYir+a/Vf+PC59o3H/AI4a/pQ/4LmnH/BLH4tf7Wnwr+dzFX81+q/8g25b/pnIf0Yf0r2cv/hs8nHa1Ef1hfsn/wDJrHw1/wCxW0z/ANJIq8x/4K88/wDBM/4zH/qXJv8A0Ja9O/ZMOf2Vfhr/ANitpn/pLFXmH/BXk4/4JmfGb/sXJv8A0Ja8uP8AE+Z6D/hfI/mFg5ji/veXHgdz8gHH44/DNfe3/BEn/glVH+3Z8R7zxf4yhkj+G3hGYW7xI2DrV712KSCPLTb846/OuCO/wTC3lRwyH+GNSPqEGK/pm/4IvfCWy+EH/BNf4XWdnCsL6ppa6tdEdZZ5/nZj9eB9AK9jGVXTgrHl4WnzTPof4cfDDw78IvC1vofhnR9P0PSbNQsVtaRCNFH8yfc5Nbu0UoHNFeGe0fE//BVD/gkL4L/bV+GV/qnh7S7HQPiVpqSXmn39tEI1v3UAmGYKPmDYAB4IJ68mv52/Eeg3nhrVL7StSt5La+0+eWzu4JMjypEJDIR14OD+Nf19OobGe3Sv5t/+C6/wrtPhN/wUy8bx2MKQWuuQ22stEANvmzB95AGOuF/GvUy+s7uEjzcdTS99H6Yf8G4n7Y1z8ef2W9a8A61fNea78MbxLeJpGJd9PmUmDknna0coJHGCvHr+jVfgL/wbM+N7jw9/wUG1TR4ZSLfxF4SukuIznEnkSxSI3+8NxGT2Y1+/VcuMgo1GkdWFk5U7sKKKK5ToCiiigAps0ohjLN0UdaN/FeN/twfHtfgb8Eb66gkA1bUl+yWK5H3243H2X2z1FdWDwk8VXjh6a1k7Hn5pmFPA4Spi6rsoq58b/t5/G5fi18bbi0t5BNpXh1jbREH5Xm43n6cLz9a8Ujm4Vf8AZ5+veqCztukZmZmkcu7E/M7nlifqaU3G0Z/T1r+sMoyuGBwdPCw6LU/hnPM0nmWOqYyo9ZPT0N3w1Yf21rEMP8OdzH2FelLIpiVRxt4H07Vyvw600WOntcY+eYYGeo/zmuhEm11+bG7gnsK48ZV5p2OCC6FhmGOWIxzkdq+xv2Evhi3hr4etrd3EFvNabzASORGCdv55NfKXwl8D3HxQ+IekaPCuUvJQ02egiU5Y8Z/ya/Rnw7pUehaVb2UEax29rGscYHYAYr8q8Qs05IRwMHvq/Q/dvBvh9VsRPNKi0jpH1LpBB9q+d/8AgpT8AP8AhdP7Pt3dWsIfV/Drfb7Uj7zBfvr9CMflX0SwzUV5aJe2jwyKHjkUqykZBB4INfmWW46eDxMMVT3i0z99zfLaePwdTCVdpJo/CrTrZWVT/sg4xwvJ4/PNaSQ8qF+/1A7mvUf2vfgW3wE+Per6PGrLpl5Kb2wYj5dknJQd/lPYdMivP9K0m41m9hs7G3lvLy4dRFDEpLvzjAr+tMLm1LE4SOLi1yySfp3P4gzDLa2Gxs8BZ80XbzeuhraLtuLSM/e2sAR3yegx3Jr7Q/YO/YvkM9v408XWzeZ9/TrKZf8AV5z87DGM/dxye9S/sWf8E8l8JXFr4n8bxrJfEb7fTid0duT0Lf7XT6Yr650/XbGbVJdNt5Y3ns0UyRoeYQc7cjtnBx9K/GeNuNo1VLBZd8P2pL9D9z8O/Dn2Eo5jmqs3rGL/AFOT/aT+IK/Cv4G+INWUhJLezdYMn/lo3yr+pH5V+Uu4MoLybZGJ8xx3cnJP55r7c/4KvfEldM8CaL4Zjl2yapcG4uFB6Rx4xn6sw/KvCf2Tv2X/APhaMMnizxSw0nwZpeZpJZW2fa2X+7xjaMckkdRwa7+BfY5ZlE8xxG85WS6u2yXfU8fxPp4jOs9p5Xhfhpx17Lu32se3f8EuvCx0nw1r2tajYm2hu50W2up1CiVRuzgn6j86o/8ABWvxj4bu/AWjabHJa3Ou/bA0SxkM8UfG4n0zxXgP7X/7YknxWvl8M+EfN0nwZpZ8uFbcmM3hH8RKHgDHH1NeDzXUl5dtJNNNJMR96Rmd1/76OT+Fe3kvB+JxeYxz3GS5Lu6h1t0ueTmvGWDwOUvhzBxU7aOfn1aASK8ZIOVyWBPpngfXiv0k/wCCYP7PUfw3+EX/AAk15CF1bxMRLlh80cIztXpwTnnHoOa+CfgF8NLj4w/GDw7oEaGQXl2m9fu4hQ5djnngdfqK/Yzw1pEOhaLb2NvGsdvaRrFEq9AoGP6Vw+LGeOFOGW0n8WsvToj2vBnh/wBpWlmVaOkNI379y6G5p4GBTQmKdX4Sf0kBPNZ/iXxJaeEPDd/q2oTLbWOm273VxKxwI40Usx/AA1fJ5Ffnl/wcVftkn4B/sgL4F0m7aHxJ8R5DZfumxJFZqV84jngncoBORjPFXTpucuVGdSooRuz8Yf26v2oLr9sv9rnxx8QbqR5LPWL5odKQltkdhEdkIAJJ/hY9cc15K5wfXjv2Pr9ajRzEm1U8tFGEB+6gH8I9uCfqTX03/wAEuv8Agnndf8FF/j7e+GG1K60XQ9H0432oahBCJGtixAiTnjLYfjHbtX0S5aVNHhx5qs7nzRs+0Kwba247juUNn8x7Uv2WIFj9nt9zMWJ8pf8ACv2fl/4NXfC5P7v4qeIBz30+H/PrTT/wat+HSvHxY15T/wBg2I5/UVh9epPVs2eBqbH4wvaxuMeTFj0ESj+lOJ2Kq4AUHgBQMflX7Nf8Qrnh8N/yVrXcf9guL/4qub+L3/BsDbeDvhpr2qaD8RtU1bVtPsJrm0tZ7FESaRF3BDtyecY4INEcZRTsuofVap+RiEpu25ztyP8AZORyPfr+Zr9f/wDg2U/bEWAeJ/gtq13uYSNrGhq2funPnRrzjAGwgAZ69a/ISe1m0+4mtbiNobm1kME6nhkkTh1x25ruP2ZP2gdT/ZY+PnhXx9pc8kMnhvUIri4Vc4lt9wEqEAgkEHpntV4imqlNpfIzo1HTqH9YgbLYpa5v4Q/E7S/jT8MtD8WaLMtxpfiCyivbdwc5RxnH1HI+orpK+es1oz3k7q6Ciig0Afjf/wAHWBxq3we/3b7+cdfAv/BKH5P+CkXwX/7Ga3/9Bavvr/g6vGdY+Dvut9/OKvgX/glGf+Nj/wAGD/1M0H/oDV7WH/3Y8mt/vB/USvrS0ifdpa8U9YR/umv5lP8AgsK27/gph8Yf+wyD/wCS8J/rX9Nh6V/Mn/wV+Qt/wU2+MAbvre3j2t4v8K9LLfjZwZh8B9mf8Gqr/wDF1fjQPXStJP5S3X+NftARkV+Lf/BqpL/xdz4zL66RpR/8jXNftJXPjP4zNcH/AAUAGK5H49fN8DPGX/YDvf8A0neuurkfjwcfAvxn/wBgO+/9J3rnjudE/hP5H9JOLO1X/YWv6LP+Dds+Z/wSy8Gf9f8AqX/pXJX86ekDNlan/YWv6LP+DdoY/wCCWXgv/r/1L/0rkr18w/ho8zBfxGdz/wAFhv22Lj9hr9jLWPEGjyCPxRrUq6PorEbvKuJQf3mAQflUE+xxX82WsajrPjzxfPfXlxd61rusXOWmmlMlxezuRgDPHUnHFftZ/wAHS2lXc/7OnwzvkVvsFn4jlS4b+FWeECPP4q2K/Hf9m3xdY/Dv4/8AgXWtWiVtN0vV7S5u1bBCIrANnPp1/GowcUqXP1HjJPn5T9Nv2Ov+DZKTx34F03xB8WvHGsaNealElx/ZOhxRxzQIwyElkkDgsBjovGT+Hv0f/BsP8A0XnxD8S5G7sdVgUn8oRX6FeDvFen+OfDGn6xpN5DfaXqcC3NtPEwZJEYAggj/Oc1qbq4pYqq3udkcPTtsfnIv/AAbGfAFFbOvfEzkdtXh/rAa/EL49+BrX4W/G3xh4Z0+WabT9A1a4sLZpW3SFEYAFjxk+uAB7V/UB+2X+1x4V/Yy+B2seMfFGpW9mlpbyfYrd2/e38+35I41zljnGcdM1/LV8R/HFz8S/iDr3iK8ja3uPEV9NqjW5/wCXcSvkLn6Dp2ruwMqk782xx4qMI6RP2f8A+DV0/wDGOnxW/wCxpg/9JEr9Tj0r8r/+DVs5/Z1+K3/Y0wf+kiV+qB6V52I/is7sP/DR/Lb/AMFH0P8Aw3x8ZM/9DVdjj/dSv0i/4NVsHwv8cB/1EtJ4/wCAXlfm7/wUdVh+3z8Yt38Xiu7/APQUr9IP+DVN8+G/jgP+n/SG/NLz/CvSxX+7nn4dv2x+uQGD1/8ArUUUV456x84/8FeP+UZPxw/7FC+/9F1/MOkjLc7lbaw+Ye2CDn8P61/Tx/wV3/5RlfHD/sUL7/0XX8wczBR823bu+YEduv8AhXsZf8D9Tysd8VjpPhJ8HvEHxz+IGk+DfCOk3Or+Itcm8m1tEj5LDaGlb0UfKe1fd37dX/BArxV+yX+yXpPxA0nVLjxXrmlxhvFenwINlrG2354MLnZH84YsTnIx61+gn/BB39gbwj+zz+yj4d+Ii2cN/wCOPiFp8Wo3mpy4keCJwSsMRxlF+Y55JI4JNfdmr6Tba9pdzY3kMV1Z3kTQTwyruSVGBDKR3BBwa562Mlz2jsa0cKnG89z+SH4QfFrWPgp8RtF8YeE9Sksda0e4F1YXETFfMUHJiPfa2MEdeOor+lj/AIJlf8FBPD//AAUI/Z3sfElhLDb+ILJFg1vTc4ls5xkFtuSQjFSR9DX40/8ABar/AIJdXP7DHxhm8V+G7WST4Y+KpnktcAEaNOSpMbFQAEy/yDGcBsk9vC/+Cfv7cfiL/gn7+0PY+NNJkkm0vIt9d07l49StsjcwUEfvFDEqegycg8Y6K1ONeHPDcxpTlRnyz2P6llbc3tXnf7Xtu15+y18Qok+9J4fvV/OFq0/gL8dPDv7R/wAKtG8Z+FtQi1DRdcgWaJkIYxEgbo2x0dScEGtzxt4cHjTwVq+kyfLHqllNaNntvQrn9a8le7LU9SXvR0P5CrQYtYmf5F2jOR3EhB/8dWv6QP8AggN4jt9f/wCCVfw1WBg0mn/b7ScD+F1vp2x/3yyn8a/nr+O3w1v/AINfGrxZ4U1JGgu/D2q3Ns0RX70W5trfkx56cCv0x/4Nyf8AgoroPwc/tj4M+M9Ut9Lt9Yv31XQbq4fZEJHz50RY/KAf3W3pyTknt7GMi50rxPJwsuSo1I/a0806oYbpLi3SSJ0kjkUMrqdysD0Ix1Bqvr/iGz8M6VNfahd2tjZ26F5bi4kWOKIDuzEgAV4avsevzI+O/wDg4F8dW3gr/glr8QIp2UTa49nploD/AByvcI2P++Uc/hX85+rpixulwQvlykZ7D58fjj+dfoF/wXp/4KeaV+2Z8SNL8A+Cbn7Z4I8F3j3M2oIT5erXmNnHOCkWGxxkl857V+f2pEnTJ9zFiYnJJ/3CP6V9BgabhT1PIxVRSqaH9X/7Jw2/sr/Db/sV9M/9JYq8v/4K9f8AKMz4zf8AYuy/+hLXqH7J5/4xY+G//Yr6Z/6SxV5h/wAFeRn/AIJmfGb/ALFyb/0Ja8VfxPmepL+H8j+YeFfNtUjwSZI1UY9fLFf0v/8ABFf4wWPxk/4Jp/DC8s5VeTR9NGj3YA/1c1udhU89du0/jX8z8DN5KYYqfKTBHVSUXke9fdX/AARV/wCCp6/sF/Eq+8N+KjJJ8OfFk6SXBUk/2TcgFRIgzja+7LcE/IORXsY6i5wTR5eDqqE7M/ofHFLXPfDj4n+H/iz4Vtdc8M6vY63pd6geK4tZA6Eds46H2ODW88u0j374Jrw9dmevzLoK/DCv5vP+C9vxQtPiP/wU28bfYZI7iHQbe00h2Tp5kcZLjPqCxH5V+wv/AAVH/wCCrng/9hL4Y6hZWOoWOtfEbUEe20zR7eYSS28pXHmzAHKKu4Hkgn8DX84vinxTqHjbxLqGtatdSXmpatcyXl5dSt96RyWZvoMY/KvUwFF3c5HnY6sn7iPvj/g2e8JXGuf8FGbrUlG6HQ/CV+0xUcI0stuiA/X5vyr+gKvzI/4NoP2Prz4Sfs8eI/ihrNnNY6l8RpYodOilXEiafAXKSdP+WjSEntiNeB3/AE3rjxUuaq2dWFjy00mFFFFc50BTXOCKdTXPNADbiRYYtzcKOTX5lf8ABQj47/8AC3fjjJYWsol0nwyxt4gG4ebjefpwuPxr7X/ba+OsfwJ+BeqX8cn/ABMr1PstkoIz5j8BuvQdeM9q/KNb17ppJpG3zTSM0jE5LMeST9Sa/YPCzh/2tWWY1FpHRX79T+fvGribkhDKKMvi1lb8EWllZR833m646Zq5olsdU1SGMA9cnPSs1ZlP3jj/AICT/Kuq8CWf2SFrqZQnmkCMMQrcZycH6jpX7diJqEHJvU/nOMbO62O2R1tYljXhVAAoa7H94AdDnpisz7a0g/ib/dBb+VaXg3QLjxx4t03RrdC1xqVwsQU5yVz8x/Cvm8RKFKm6s+mp6OFw869SNGC1k0vvPrX/AIJ3fCj7NomoeKbqNlkvv9Htdw+ZIwTkj68flX1IgxWJ8O/B8HgTwdp+l26bY7SFUwO5A5rcDZPQ1/M+cZhLGYydd9Xp6H9tcK5LDK8spYSK1S19Raa4zQXANNeVVbtwK8xn0T01Z4F+3L+x5L+09pOjTaXcW1jrGlT/AC3EgPELEbwMA8/KMfj0rU/Zt/Yo8Jfs2WC3EMa6hrW395qF0Nzj12/3Rz2rrfir+0f4W+E1u39o6hHJdAHbbQEPKxGO3bqOuK+WvjJ+1z4g+J7S2dizaVpLZGEb97KD/e/u4x2Pevt8owudY/DLA05ONFd9D8q4kzfhrKcXLMKsVPEPorPU9p/aE/a+s/BdvNpXhySG91bPltJn91b+5Pr1xgHpVr9iDTri88B6h4iv5pLzUdcu2kmuJD87op+VT2+XLfnXxzH8+csCfQckt9e9fUf7DXxp0mXSJvBt1qFtDrFqxmht2cBpEb09SMc/UV7OfcMwwOVP6vHmaa5n5f5Hx/B/G9XN+IefHS5Y2fJHZJnmHxW+D1z+1R+1Vrmsa/JLpngHweotprmU+Wtw8eWcJnqOmScda8J/bD/bE/4XFcR+CPA8Ulj4J0tvs0cNpGd2pFcZJC/wjt65Oa/Qz9oP9mvT/wBorQIdH1HVNU03R2l828ttPk8k33Th2HOOP1pvwl/ZF+HfwYgji0Pw3psM0aj986CSVsdMlueM1xZXxXhMPGFXFQdR01aEPsrzfdn1ubcEYzEzqU8LNU1Ulec93LyXkfmb8KP2LPiZ8XWA0/w3cW1o2Ns98vkRIp+77nGD0Br6R+F//BHiaSCKbxh4qkVuC9rpke1CPTzGGfyFfdkUKxj5FCqvAGOlPCEnmjNPEzNsW7UpKnHol0NMp8I8lwlpV06ku72+48n+Bn7F/wAP/wBn3URf+H9Dij1IJ5ZvZnaWdh35Y8Z9sV6vCnlrgDCjgAU4jP8AShVwa+FxGKrYiftcRJyl3Z+kYHL8Pg6XscNBRj2QtFFFc52EdxKsEbSOyrGiksT2Hr/Ov5o/+Cyf7Wc37X/7c3ibUrSSWTw/4XmOiaWEVjH+54kcdfmYkZIwOBxX9KPinw3beMPDt9pd5532XUIXgl8qQxvtYEHBHQ818WS/8G7/AOzBM7O3hPWGkkJeR/7XlDTOSWZ2x1Yk8/QV1YWtGnLmkcuKpTqRtE/nXEBiikd1kWGNC0hMbcjpx781/QX/AMG7v7Jj/AD9i5vFGp2vla98RLs6lKzJtYWyjbCnIzgfMcc8k/hvQf8ABvD+zBbzxSL4S1bdFIsg3atKwODnBBzxX2f4Q8J2HgPwvp+i6Vbra6bpcCW1tCp4jRRgD8hWuKxiqRtExwuFdN3ZoqMUtAGKK4D0AxzTZU8xCp+6eCCM5FOooA/m3/4LX/spf8Mt/t5eIIbS3aDw/wCLiNa091jPlky5MiAgYyrfzFfJKrsVXZd3yt8hDFZeDlTx0Nf1Ifti/wDBPT4Xft22+jr8RdEn1KTQTJ9imguWt5IhIVLjK9Qdi9emOMZNeFf8Q7v7MPOPCutLn01iXr616lHHKMFGW55tbBuU+aJ41/wbN/tfL4x+B+vfBzWrqT+2fBM63ukmckvd2E4J2g4xmJlIOMcOvHUn9SK+X/2Yv+CQPwT/AGQfixbeNfA2j6zpuvWsMlukj6pLIjRvjcrKeGBwOvpX1BXBWlGU3KOx3UYuMFGQUUUVkaH43/8AB1VG0mufB/AZtqXx4UnvF6V8Ef8ABKOFh/wUe+DG5ZFB8S25P7tv7jV/Qp+2P/wTp+Fv7eEuhyfEfR7zVH8O+Z9hMF49v5XmY3529c4Xr0xx3z5t8Gf+CHX7PfwD+KWg+MfDXhvVLPXfDl2t5ZTPqckipIoIGQ3bn26CvQo4uMaPs2cNTCuVXnPrpW5206kC7aWvPO4Rs/hiv5lP+CvDNL/wU1+Mjcsy63n5VJH+oj9q/psIyK+SPjV/wRF/Z9/aB+K+veNPE/hvVLzXvEdz9rvZk1OSJWfYq8Be2FHXPJNdWExEaUm2cuKoyqRtE+Ev+DVeB4/i/wDGZmUqP7I0scgj/lrc+tftJXgn7Hf/AATa+E/7Ceva5qXw50e90u58RQRW16Z717gSLEzFMbvukF26dc17qdRgDY82PP1qK0vaVHKJVG1GmozaJq5H498fA3xn/wBgO9H/AJAeupF9C3/LWPrjrVbxHoFr4r8P32mXsfnWeoQPbToCRvR1KsMj2JrKOklc15oyXuu5/IDpMbDT7RtsmGXA+Q9jjrX9FX/Bu4Cn/BLbwap6i/1HnaQD/pcnTIqO3/4N2v2X4kiX/hFNYYxAAsdXlUvgk84wO/YCvqP9l/8AZi8I/sgfCKx8DeCLW6s/D+nSSywxT3DTspkkaRuT7seg6AdetduKxSqQUUcmHw7hJyZzX7f/AOx/pv7cv7LviL4f6hItrNqEYn0+6Khvsl0mTG/IPGeDjsTX8zf7SP7NHjT9lD4mah4P8eaFcaPqls5BMgJt9Qj4xLG3QqwwcZ4z71/WWGzXBfHr9mXwD+0z4abR/HXhfSfEVnIhQfaYf3kYPXbIMMv4GsMPiXT0extWoKep/Oj+yV/wVx+PX7GWhxaP4X8VR6h4fhbcmj65Y/bbeAdlQja6r/uuM4Gegr3DxX/wcuftHa9osltZ6X8NdBkkUqL210a6lkj91WS4dQf94EV92+O/+Dab9n/xXqjXGl3Hi/w2pJPk2WoCSNc+gkViMfU1B4R/4Nm/gJ4f1JJtS1Dxlr0KkFobm/SJX9m2IM/0rs+sYZ6tanMqFZaJn426p4s+Mn/BR3456fa6vqfiD4geKtQuFWFHkaSG0BYLv8uNRHGi+mATjrxXI/tB/BfUv2ePjX4k8DalJ9s1Tw3d/Y7gxI2wy4Vm556Z5+lf1Ffs6/se/Df9lLQP7O8A+E9L8PxbAjywxZnmAzjdIcsep7968N+Mv/BDf9nn48fE/WvF/iLw3qlxrniC5a7vJY9UljV5GGCcD+uadPMYRdorQJYOUl7z1Pm7/g1eXZ+zt8Vv+xohzjP/AD6J7Cv1NZiRxj35rx/9jn9hX4d/sI+FNX0X4dabdabYa3dre3ST3TXBaRYxGMFugwPzJ9sew4rzq1RTm5I7KNNwgos/ls/4KLqz/t7fGJju58VXZxtI/hT2r9IP+DVXK6B8cVx/y+aMeQR/Be+or6y+Kn/BC39nn4x/EvXvFmueG9WuNa8SXsl9eypqciK8jgA4A6Djj6mvVf2Nv+CfXwz/AGDrTxDD8OdKvNNXxRJBLqH2i7e4MhhEgjxu6Aea/TrmuytiozpchyU8LKNXmZ7bRRRXnnoHzj/wV2Of+CaHxrX/AJ6eFbtP++lA/rX8wskEn2aRtsg3RH/liSMn3zX9b3xu+DuhftBfCbX/AAV4mgkudB8TWb2F7HHJ5btG/XDdj3r5Gb/g3b/ZdLlh4R1Zc9hq0uPyruwuKjSi1LqcOKw0qkk0e0/8EugB/wAE8/g8AMbfC9muAPRK96Nc18HvhRovwM+GOh+EPDsMlvovh6zjsrOOSQyMsaDAyT1NdLXHKV3dHZBNRSZxP7QvwB8NftOfCLWvBPiyxj1DRdbgMMqMoLRtg7ZEyCA6k5BxX8zf7eX7DviX9gr9oS/8G6xHJPp8ZM+jagqHy7u2J+UZxguowG6dRwK/qaryH9rn9hn4a/tw+FrHSfiJoX9rW+mzedbSRymGaLP3lDjna2Bkew6Vth8RKm/Ixr4dVF5n4l/8EQf+CnV1+xZ8WYfA/ie4eT4a+LrhY2O5yujXLFgJVUj5VYn5+udq4x3/AKCtP1GHVbC3urWWOe3ukEkUiHcsikZDA+hGK+IZv+Ddf9l6dCreFdbCnjA1mbp1x1zX1z8EPgxpP7P/AMNNL8J6FNqc2j6PH5Not9cm5kiTsu9ucDtSxFSNR3iGHpyhG0j8x/8AgvB/wSM1v4v67cfGT4Y6edS1kW4j1/RLdVWa7C4xNGcdQA+7Oc5GMc1+M1xA2lXslncw3FvNby5mhbfDJDIMjaQMMpXHXPP4V/X6VzXz1+0t/wAEsPgb+1dczXfizwLprapMCG1Cyza3BJxySmAx46kH9a6aGOcVyy1Mq2EUndH89/wy/wCCjHx8+Dekx6f4d+K3jjStPjGI7drvzowo6BRIj8DP/wCuuf8AjV+2v8Xv2hdP+z+O/iV4u8Radks1reXxjtz06hFT8uf8f2V1T/g2M+Bd1qTSWmveOrCFjzDFeoVx6ZKV6f8AA/8A4IH/ALOnwU1W31D/AIRm78S31swZH1i6NwoI77OBz/SuiWMoL3ktTGOGrfDfQ/Er9mb/AIJ0+Nf2hvhT4w+IMtndaB4D8FaBdavLqtzbFI71oo3ZIYR/GSVOTjgY9RXgVwzTaLLI6Mi+QzFdp3KWQkA1/Wt4y+Bvhfxz8HtW8B3Wk29v4W1nT5dMuLK1QQIIJFKsqhRheD1r5Jb/AIN2/wBl/wApkXwnq6KVKrjVpDsyu3jOe3rmpjmSadxSy93TufUX7Jp3fsr/AA3Pr4X0z/0lirzH/gryMf8ABM74zf8AYuTf+hLXvXgrwdY/DzwZpeg6Yjx6do1pFY2yM25ljjQIoJ7nAFeDf8FePm/4Jp/GZf8AqW5z+RWvNg71F6noT0hbyP5glPl2yN12wq2O5xGDx+VfTX7SX/BMbx58C/gf4N+Jmm2c3ijwP4v0C21Zr6zhMjac8sas8coA45bjj+E181KmLEnJz9nwD/dPlLgj3H9a/qN/4Jv6bba1/wAE7/hJa3lvb3VtceE7JZYZow8cg8pcgqeCD6V7WMxDpJWPJw1GNRtM/my+Cf7UPxG/Z8lW48B+O/FHhePhjDp1/IsZIz96M5U9Twy9z716b4x/4Kx/tL+OtDfTdS+MXjE2kqlXit/KtXdT1BeKFXP/AH1X7cfHz/ghZ+zr8ftXuNRuvB7aBqF0S0k+jXLWu5j32jK/p3NePp/wbFfA8aj5zeIvHkkI6Qm+TGPTO3Nc6xlB6uOpq8LVT0Z+E+u6zceINUmvNSvbm6vLzPmT3TyXFxO31b52PPrxn3r7w/4JR/8ABFLxV+1x4x0vxd4+02+8O/DexeO5EdzH5dxrADZEaBgQIxs+YEZIkGGFfq3+zx/wRX/Z8/Zu1OHUNJ8Fx6pqUBVlutWma8YMM4IDfKDz2HPHpX1Va2cWn2iQ28ccMMahURFCqgHQADgCs62YXXLA1o4N35plTwv4Y0/wZoFppelWsNjpunwrb21vCoWOCNRhUUDsK0KagxTq809DYKKKCcUAFR3UnlpT2bFeV/thfGSb4M/BfUr6xjmm1q+X7HpsES7pJZ34XA9uufpW2HoyrVI0o9XY5cdilhqEq8vsq58Lf8FK/wBoNfi18cW0Gzm8zR/C5MO1SP3s5x5hHOCBhRn61896bbXGtXsdrZ28l5cvwI7dC5J/Dp+NfV/7OP8AwS0174i7dc+Il3NpMV5IbiSwQ7rqYscnzWxhD0+6Wzk5xivsnwL8Cfh5+z5of/Ev03SNJhiUeZczbd7bc4LO3Pc/nX7hHjbL8kwsMuy6PtJxWrWzfU/m9+HuZ8QY2pmuZSVGEnpfex+d/wAL/wBgD4l/E6OKQaMuk2k2MyX7eWdp9AM19HeCv+CXVzb20S6v4mVTGoXy7S3B4HqzV6J8UP8AgpP8Nfhu8ttZ3d14gvIcqYdNiDgHtlmIH5E9K8P8Yf8ABWHxJqUzpofhnTdPTna93cNNJg9MqoAB/E5/Dny5Zpxbm3vUKfs4elvzPSllHA2Ue5iqvtZrtqe6aF/wTj8B6aFN42qag4xkzXJC/kMda7zwN+zD4F+GmrQ3+k6LZ215CQVm3FmGM9yfevg3W/29fih4hn3N4gWzRs/Ja2qx7fxJJP6Vz+o/tA+M9fH+meJ9auA3UNcFQPoFxWM+C8/xC/2rEb76sIeInC2Dkng8HrHZ2P1I1DxVpujx7rq+tIFx1klC/wAzXF+Jv2q/AnhQH7R4gsGcZwkcm9jj6V+ac3iC81F9015dXB7+bKzfzNSW789kLdcR/e/U1WH8MYrWvW+5HPjvHHESVsJQS9WfbHjL/go1oNmjJoem3eoTcgNJtjjHpzknn6dq8Z8f/tjeNPiGskS3w0W2bI8uz4Yg9t3X/wDXXj8LARr7dSTTLnxRp+ipvuLqEei5yxr6bLuC8uwzTjDmfdnwOb+JGeY9ctWryp9I6G2snmztNK0jySnLO0hZ2PqWPJ/pRd38OmQ+ddTLHH1yxA3fT/PevPtb+NzLuXTYfm6eZKMbfp1ri9X1y7112lvJnm9cthR9BX2GHymSjaSSj5HxMq0pTcpNtvvqdz4y+NTTxta6TiPqDPj5l+n1rg7bVb6z1iO/tLq4g1KIlknikKzL6kN27VVGWKRxq7MxwkaqSzH0AHJr6Y/ZZ/4Ju+I/jE1tq3ij7R4e8Pth/JY4urtTnjbjAXjqT371eaZhl2VYdyxcla227fyPY4fyLMczrqGAi2777Jed/Ipfs/fH34/fGPUoNB8M+Irm6gyIpb64tg6WqnuZOTng4wD07V99/Bv4Xy/Cfwz5mta5fa9rEiBrzULyTqRknaOiqMnpTdD8PeCv2Wfh8sNrDY6DpVou3JIUufcnksa+VP2kv2xNS+Ll1caVobTaf4fXKF87Zro984Jwoxxg855r8JxUZ8QYrly+gqVLq0t/Vn9ERxtDhHBe0zSu61e2kb3t6HrHxC/butdI+LOl6VpIju9IiufL1C5Ug7gcD5P905znHbrX0fp95HqFpHNGyyRyqGVgcgg1+WNvaYjxj/ZbHXB7/XpX3N+xF8Vv+E2+GkemXU27UNHAhfJ5K/wn9KfFXCtPA4WFbDdNJf5nJ4d+IWIzTH1cNjnbm1h/l9x7dRTQ+QPelDZNfnp+3i0UUUAQ3N0llC0s0ixxpyWY4AqqvifT2HF5b/8AfwcVwP7Y1zJbfs0+MZI5Hjkj06RlZGKspA7EV+Ua69qAX/kI6h+N1Jz+tfc8J8FyzujOqqihyu2x+acbeIP9gYiFH2XPzK+5+zltr1rezeXDdW8khBwquGJq5k7a/Mn/AIJyapdXX7VekxyXV1KjWlySskzMCQgI6n3NfpsBwuK8jifIHk+M+qSnzaXue9wdxOs9wTxihy62sOByKKKK+dPrQooooAKKKKACiiigAooooAKKKKACiiigAooooAr6iMWc3+4a/In4r+Odch+LfiiOPW9YjjXWr1VVL6VVUCdwAAG4A9q/Xi+G63kHqpr8bfirIzfFjxS2ef7avD/5Hev1jwpo06mKrKpFOyW5+G+NVerSw+H9nJq7ezsa3w38d67L8SvDiPrmsyI2p2ylWvpWUgyxg5Bb0Jr9fLLizj91Br8bPhqcfE7w5/2FbX/0dFX7J2f/AB6xf7oo8WKNOniaHs4pXTvb5B4K4ipVw2IdSTdmt3clHXpQFwaB1pa/J0fuQgXFKRmiigBAuDSkZNFFKyAMc0Fc0UUwCgDFFFABiiiigAooooAKMc0UUAFFFFABRRRQAUUUUAFBGaKKAADFAGKKKACiiigAIyK+cf8AgroM/wDBNT4zf9i3OP1Wvo6vH/2/PgrrX7RX7GvxG8EeHVt31zxNo0tlZLPJ5cZkbGNzc4HHWqpv31cip8LsfytwpvtkXs0Kg/jGBX9Rn/BMCc3P/BPP4NvxlvClgT/35WvxfP8Awbk/tPRRbE0nwSxWJVVv+EhXqFA5Gz696/cD9hz4R6x8Bf2Rvh/4L8QLbx614Z0S30+6WCbzUDRrt4bAzwOvrmvTzGtCpBcrPPwNGcJtyR6xjNFNQYp1eUemBGaCM0UUAAXbRRRQAUhHNLQx4oAZuwOelZ2taHp9/cW95fW8MzWJZ4pJQD5JOMkZ78Dmrt9dR2Vs0sjLHHGCxZjgKB3Nfn5+3f8At73njS/vPB/g+8a10mMmG/voWxJdHjKIwPyrwQT1Oa9zh7h/F5riVRw/zfRI+V4s4owWS4R1sVq3tHq2evftQ/8ABSfRfhbNcaL4Vjh1zWYwyvKHDWts3oWByT14AwMda+H/AIpfH3xZ8atRkuPEGsXN0rEkW6uY7dAeoCDtwK4eLEYwF2r2AP8Ann3708S4r+j8g4Ky/LILkjzT6yev3H8ocTceZpnNRurPlp9IrT7y9ZnyhiPcqr0RDtUVZimVPvHb9f8AGsdp2yArMCfTvQ5YIWcn5Rk/MOK+rVJW02PiPaXlrubw1KGMjdIBVhfE1vCBtzJ647VzqJydrMy5xuUblpvnDH3v++iF/nWcsPC/vBzN6I6SXxrHEo2wlj79qhk+IV4FxCkcee/Wuf8APV3Cq29j0VQSTW1oHw78QeKZFTTtD1S8dzgCO3Y5/pXPUlg6S5pyS9Wjpo4HE1XanTb+TKt14mv70HzZpGUf3AePriqMrCR/m+ZjyC2efp3r2zwP/wAE+vij40nT/iQrpkLAZlvpRGFz7Akn8q9y+Gn/AASFUoreLPE8kq5Be201dit6guefyHrXz2YcbZJg1Z1U/KOrPr8o8Pc+xtuSg4p9Xoj4hAacxxxxySSMcIiRlmf6Acmvavgf+wF4++M80Nw1i2g6XIATdXilHZT/AHFwTnjvjqK/Qf4R/sffD/4Koh0Xw9ZJcKBm5nXzp2Izg7mzjqemK9KW2WM9OB2r82znxWrzTp5dDlXd7n67kPgrSpyVXM6nN/dW33ng37Pn7Afgj4DLDePbf2zrEIyby9+YoR1IHQdaj/aR/b48I/AK0ksrW5j1jXdhEdrbkMqMP7+D8vX9D6V6t8ZfB9z48+GesaRaXMlnc39s8cUsTlGjbBwcjn2/Gvxx17SrrQfEF9Z33nNe2UzW8plO2R2UkEseSfb615fB+Sw4jxM6+ZVXJx15e/8AwD0+Os8nwphKeGyiioqenN2O0+Ov7Sviz9oLxB9q1y/kW2hk823sYjiGA+/rnA6+ldV4R1RfEegW9yNu77rjGMMP6V4vGNgx2znHXH412nwV8RLYa7Jp8zN9nvB8nsw6fzr9xqZTQoYWNPDRUVFdD+aMwzLEYys62Jm5SfVnp0dr8rK3Ckduue1ehfs4/E1vhf8AE+zuM7bO7fyrkD+IHABP05riimfYqNp+opsi/IRz746ge344r5fMMHDFYeVCp10OrJ8xqYDFwxdJ6xdz9MbS6S8tlljYNHIoKkHqKkSvHv2Nvio3j74apZ3UgbUNIP2eUZ6qPuH8QP0r2FDxX86Y7BzwtedCe6Z/cOS5pTzHBU8ZS2kl9/UdXP8AxR+Ilh8KPAuoeINUaRbHTY/MlMa7mA+ldBXkv7dLqn7KfjItnb9hbOCBVZfQjWxVOjPaUkn82aZtip4fB1a9NXcYtr5I8R/aD/4KIfD34p/BfxHoemXGpNfahYyQxq9oQGJX618Hxs3lru+9jnIx+lRxyRll2NGzY4wFLcjHGPapDkHndnvkc1/U/DvDeGyelOnhm2pats/jHijirF55XjVxaSaVlY9T/Y3+LOkfBb47WGva1JKljb2s6MyRltpbj+QFfaQ/4Kl/C8L/AMfGsE47WLYr83P4BndtbIwX24HepBOso3K6lW5B3jn9a8riDgnL82xX1vEyd7W0Z63DHHuZ5LhfqmDinFu+qufrh8Af2k/Dv7R2j3194ekuXhsJvIk86PYdxGelegHOK+Pf+CQxDeAPFuO2pJxuB/5ZCvpj4xfFrTfgv4Dvte1aYQ2tkhb3kbsoHqTX8/55lKw2ZzwOFvKzsvO9j+nuHc8lismhmONajdXfkbHijxfp3gzR5r7VLyCxtIRueWZwqgV86fEn/gqf4E8IXD2+kQ33iGZCVzbptjyOPvHtXxZ+0n+1P4i/aW8VS3V5cTWuk7itnpkTMqRqDwz/AN5iOucivOUduRllQ9ArAJ9Of6V+nZD4X0lSVbM5Pmf2Vofj3E3jFiFWdHKopRX2mr3PtG5/4K/XTXB8nwfGI88brv5se/FdD4P/AOCuOjXV1HHrnhu/sI24M0UgkUfhXwhBlIm27sL1AViF/LilimVxtXbu+8cEbj+HWvpqnh7kU17OEdfKR8lS8T+I6bVapU080v8AI/Xb4QftKeEPjfZLJoGsW11JtDPAW2zR+xU8/lXeK2a/Fnw/4gvfCutQajplzPY3ls/mRyxNsYH39fociv0G/YO/bcb41WS+G/EskcfiazTEcvAXUFA++cYAcjkgccmvzHirgGrlkPrOGfNT690fr3BfidRzWosJi1y1Oj6M+oM470p4FNA3L7jvXjH7Yn7WVh+zP4Hab5LrXNQzFp9mD80jd2P+yK+EwODrYqtHD0FeUtj9LzLMsPgcNLFYmVoxWp6D8TPjJ4d+EOitf+INVtNNt1+75sgDSH0UdSfpXzf48/4K0+F9JuWg0HRdU1h1JHmMBCh/PtXw58S/ijrnxe8VS6x4gv5NSu5GYqJCGihBOcIn3QB2IFYJYoNrNkMP43/xr9vyXwvwdOmqmYycpdk7JH87Z94xZhWquGWxUI9G1ds+0I/+Cvl59pw3hGMpnGBefMPrxXcfD7/grH4Q126jt9d0vUtDZuDMcSxA/Uc4r8+1ia3iDFXWPHDDPSmhvNXKukkec4U4b6n1r1q3h3kdaLjSVn5SueDQ8UOI6E1KpO6842P2U+HXxV0H4raJHqGg6pa6lbSAHdE+SueeR1B+tdExwK/HX4P/ABp8QfA3xbFq3h+9mhZWXzLct+7uE7gqcjn161+nn7L37Sml/tI+A49QtSsOoW4Ed7bbsmCTHzAeozkA+1fk3FfBeIyh+1g+ak+vb1P27gnxCw+dx9hWXJWXTv6HpV5/x6Seuw1+NvxYG34q+Ksf9Bq7/wDR71+yN4MWUv8AuV+N3xZ4+Knir/sNXf8A6OevqPCT/e63+FfqfH+OH+7Yf1ZH8NmP/CyvDf8A2FrX/wBHx1+y1j/x6R/7or8afhpz8SPDn/YXtf8A0dHX7LWH/HnH/uil4tf7zQ9H+hXgh/u+I9UTYooor8jP3YKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACg8iiigBFXbS4oooABxRRRQAUUUUAFFFFABTZG2/lQXrz39p741WvwK+Eeqa9MymeCMpaoSP3kxGEUVth8POvVjRp/FJ2RyY7GU8Jh5Yms/dirs+b/wDgpb+2E/h+3k8A+HbrbqE6Z1KdG5tkONqAg9T82c9MCvg8DB/p6n1+pq94o8RXvi/xHfatqUpuL/UZmuJ5TySzc7fov9aok+xr+sOFuHaOU4KNGK9/eT8z+JuL+KK+d4+WJm3yLSK6WHKm8H2pAuRUOo6hb6NZvc3TKsMXLEnGK8Y+JvxxvtdmmtdLZrOybjzF+8/+f619Oot7HztHDTqu0T1DxN8SdD8IKy31/EH7RRndI/Tp24znk9BXbfsLeF/+G1vjofC+l215Y6PZWzXeo6kMBoFziNR94bn+YgHHCmvjGaOSWTczSTSMCWkYbmPY9e/JA+tftt/wRi/ZRX9nj9liDWr61WHxH45canfEj5o4sEQx8gEAKScerGvjePs+/sjLeag7VJ6R8vP7j9O4C4JoZlj1CsrwjrLzN3wt/wAEnfhzpao2pTaxrEijkz3JUE/Rce35V3vh/wDYD+FfhwDyvCllMRj5psyEfma9lCEGlWPb3NfzbiOIszraVK8vvP6Uw3B+TUP4eGivkchofwC8G+Gx/ofhrRoTxyLRM8dO1dLY6JZ6am23tbe3X0jjC1aK0YPtXmVMRVqL95Jv1Z7NHA4aj/Cpxj6JB5QA6ChRg04dKKwOsKQ0tFMCORM/hxxX5w/8FRvgIfh/8VrXxZZ2/wDxL/Ew8qcp0juVx17DeG49djdOM/pCy5rzD9rn4JQ/Hj4Ga1oUiq140Jns37xzJyrA+vb8a+m4SzqWWZlCvf3W7P0Z8Vx7w7HN8pqUUvfjrH1X+Z+RYHHHrj8qks53tbmOaNtskLB0PuKde6fPpl5Na3MbQXNrI0U8bDBSQcEfpn8ajVSD/Ov6zjOE4c8dmtD+J6lOdObhPdaNeZ794Q11PFPh61ulPzMNsuezDr+BrQdeWX+L7pPtXlfwQ8T/ANn6tJpszkQ3Skp6Bh0/nXqjLlhuwWCgHFfJY3DujVa77Fxkjvv2a/ibJ8MvipZ3DvsstQItbkA9Qfusfof5194Wdwt1AskbBo5FDAjoa/M91+U9V4+8P4a+2v2QfisPiJ8OY7eZt15pQEEnuBwp/HH6V+Q8fZTZxx0F5S/zP6G8GuJLOWUVpecf8j1ys/xR4X0/xroF1peqWsd5p94hjmhkHyyKexrQzQDmvzOMnF80dGf0FKMZJxkrpnzj+1X+yz4B8Kfs+eLNS0zwrpNnf2OnT3EM8cOGjdUJB/A+tfmuIggx6cV+tH7ZX/JsPjf/ALA9z/6LavyZr968LMXXrYWq603L3urb6eZ/MPjHgsPhsfRjh4KKceiS6+R7H+wb4J0vx/8AtJabpusWcOoWMlrcM0MvKkqgI/LJr79H7GfwxOf+KO0f/v1/9evhb/gm2f8AjLLR/e0u/wD0Wtfp3wfzr5HxHzDE0s29nSqSiuVaJtI+28I8pweIyZ1K9OMnzPVpN/icx8OvhH4d+E9pdQ+H9KttLiu3EkqwggOwAUHr6DtXwx/wVI+Ncvin4oQeEbeeQ2OhxiS4iB+V5X5Ge/A7V+hV3JstZGx91Sa/IT9pvWJPEn7QXi+6mZmk/tWRWJ7hHZV/IVn4b4P65mssRXfM4K+uuvc28WsZ/Z+TQwmFXKpu1lpp8jhHcncZHZVGCcE/N6Cvrb9g79hK0+Kel2/i7xdDJJprM32OwbKCYA8SNjB2nsO9fJ9lbfbtRt4R8qzTRDn3cD+Vfsh8JfDsHhL4baHp9uixw2tlEgAOcYUCvufErPq+BwtPD4eXK5t3a0Z+d+E3DGHzHGTr4qN400tOjZDpXwO8I6PYrbW/h3SUhVQoH2VG4HHUjNeS/tH/ALAnhH4p6FcXGj2EGi68is8VxbLtVz6Mv3eT3xmvoR/mWmqn69a/DMLnGMoVVWpVXf1ep/RmO4ey/FUXh6lGPK12Wnofi/4t8L33grxRfaNqMbQ6hpc7QToR94gkZHtxU/w+8Z3Xw88X6XrVi7R3FjdJMSnYbuf09a91/wCCoHhaHQf2kI7yBFj/ALSsVeQKPvuvG6vnMpsDL6jafcV/T2U4qOZ5XCrUX8SOv3H8f51g5ZTm1SjSf8OWn3n7JeAfG1v4y+HOm69EwFvfWiXQ5+6CoOPw5r8rf2sfjBN8bfjprerSSM9jFcmz09T0SNCV3D/exn8a+3f2YPFtwv8AwT4e8WRvO0/TLtImIB2+WH2/ljvX5t27B4FYZwyg8nOM1+e+HOT06WYYqq96b5V95+neKmeVK2W4KgnpUjzMfbQNPcxRrGzNI6xqiDksTtCj69a/Qz9kf/gnnoPgrw5Zat4vs01jW7qNZfJmBMdrkA7dvQ46civj39jnw3D4s/ac8I2dyqyW4vhKyN0fama/WhCNoC/dxR4m8QYmhVhgcPJxi1dtaNleEPC+FxMJ5jioKTTtFPVetjm7r4LeEbuz+zv4d0fycbdos4xx+Ar5d/bP/wCCemmzeHrzxN4GtxY6jZxvLPYgkw3K/eYjJypAzgDivspeOMYqHULdbu0kjZdyspDA9CK/LMqz3GYHERrUZvR6q7s/VH7NnnC2X5jhZ0KtJXa0aSuvQ/E9SCg2hgvUBx8w+tezfsK/GOb4QfH3SWaRk0vWnWwu1z8pLfdYj245HXvXH/tIeHofCHx98XWMEarb2upzOiL0VGJYKPpmuW0m8bTtWtLmNislvOrrjthxiv6XxtGGZ5S3UXxQv96P5HwM55Vm6lSesJpfJM/aO6k8yxkbtsP41+N3xV+b4q+Kv+wzd/8Ao96/YDw3etqPgexuG6z2iyH8VBr8f/imc/FbxT/2Gbv/ANHvX5b4Ux5cZiI9kl+LP2Hxqqe0wOFqd3f70hnw04+JHh3/ALDFt/6Ojr9lrD/jyi/3RX40fDc4+I+ge2r2uP8Av/HX7MWP/HnH/uip8Wv96oej/Q18D/4GJ9V+RLRRRX5GfvAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQBGThT/ADr83v8Agp5+0A/xC+LUPhWxmWTS/Dq75QrfLJckjrj+6B+Zr7r/AGhviJdfC/4S6xq1jY32oX0Fu32aC0t2md5DwvA7ZNfk/c/CTx74g1O41C78KeJpbzUJnurhv7OmP7xzk4+Xp0r9Q8Mctw0sZLHYqSSgtE317n4r4xZti1g4ZdhISk5v3rLp2OXKY+VScZJ596GKwozyOqRp8zE+ldQvwS8aM+P+ER8Tf+C2X/4muZ+Kfwb+IP8AYf2Wx8FeLJpLrKuY9Lmbaox6L7/pX75/a+Cb1qx+9H82U8lzBu3sZfczxH4seO5PGeryQxs0dhASqqP+WvTk+3HH1NcdHa7xgqq7eAB0FeoL+y78RAu3/hAfGBwMf8gifP4/LRH+y18RWGB4A8YNu6Y0efgjn+79a2jm+AS1rR+9Ht4fKMbBWVKX3M3v+CfH7MTftN/tReHtFmhb+yNPlGo6kxzt8qM58vgH5mPQHjg81+9OlafHpNhDawRrHBboI40UYCKBgAV8df8ABHL9k24+BnwVuvEWvabPYeJfE0u94rmJklghUnYpDAEE7jnGR05r7LWv5o8Qs/8A7SzNqm7whou3mz+o/DvIHluWKVVe/PV9/QdRRRXwh9+FFFFABRRRQAUUUUAFMlTeMdmGKfQaAeujPzP/AOCk/wABP+FYfGZtes4vL0vxL+9IA+WOcYD/APfWR+VfN/4fj/Sv1d/ba+BP/C+fgXqWmww+ZqVqv2qzIHzeYnIA789Pyr8zH+B3jbzH3eEfEm4MdwGnSlc9CQdvfFf0d4e8UUMRlqoYmaUoaavp0P5H8TOD6+EzeVbCU24VNdFszmbW6exuI5o+JYXDr9RXu3hbXV8S6Db3aj5nGH9mHWvLT8DPGuVb/hEfEu4H/oGy9O/8Nd98Gfhz4y0i6ks7rwt4ihtZcMjSWMihTznqPpX1WaY7A1KfMqsbrzR+eQyXHN60ZfczpXTKMvqOPTNeh/s1/FJvhl8TrWRsrY6gwgnUHjnox+nP51y6fDfxFtwNB1huT/y6P/hT1+GXiTnOhauvG4H7K+QR07V8jmEsDisPKhUmtV3R6+U0czy/GQxlClJOLT2Z+iNrMt1CskbbkkGVI6YNTDpXmn7LnivUvEnwvtY9Vs7y0vrE/Z3E8Rj3gdCM9a9KT7tfz3iaPsa0qd72dvU/tbLcZ9awsMRa3Mk7djzD9so/8YxeNv8AsE3A/wDHCK/JtTlRX6/ftG+GH8Z/A/xRpsa75LzTZowo7/Ka/H2ISINsgZXXhlYYIPoa/bPCWpF0K9PrdM/nzxuozWMw9W2lmj3v/gm86x/tYaLuAXda3ag57+Upr9OhnFfjx8GPine/Bb4maT4msIluJtOkIeJ+BMjDa4HuF4r7u0z/AIKmfDybQfOmXV47pUG6D7Pn5u4zmvL8RuHsfiMxWJw9NyjJJaanq+FHFWW4TLZ4TFVFGSbeulz6WuE823Zf7wK1+S37YXhV/BP7SXiy1lRkWS+F3Gf76SEt/Wv0E/ZU/bF0v9qC/wBet7O0msW0eZPLWU/NNG4yGx+hrwr/AIKpfAK4mns/HWn2zTJCog1BVBPy/wALfhXk8CV55VnLw2M93mVte/Q9rxJo086yFY7APmUHfTt1PimKTyJInXqjJIp9CrAn86/XX9mr4mWfxW+Dmh6payK/mWsayAHlHCjcD+NfkMp2rjr3JHevYP2V/wBrzXv2atVkjtYl1LQ7ht89pI21kY9WTP8A+qv0rj7hmrm2FjUw/wAcNvM/J/Dfi6lkuNlTxP8ADnv5H6sIMD1/pTJJPKG5q+Y9A/4Kq/D++0xZL221qzuNoLR/Zt3PcA55ry79oX/gqLN4q0e50vwTp81qk6Mkl9d4WRQcj5V+lfi2E4LzevWVH2Tj5vY/oDHeImR4fDOvCspNLRLc8x/4KM/EqDx/+0jdR2b+ZFosS2m4cjd0cfnXhIKxjbuLMnJ4+9k4FDXUlzK00krzTTN5jyOSWdj1JzzzXefs1/Be9+OvxX03Q7OOTyRIst5Jt+SOJTnk+pr+h6FOjkuVqFR+7Tj97P5bxFavnubucI+9Vl06I++v2Y/hvNZ/sN2ej3CMJtS0qZ2Q8HMoY4/HNfmTPZS6XM9rMjJNbsYpFI+6y8EfmK/ajQ9Hh0XQbWxt1C29vCsSD/ZAwP0r8zf+CgH7P1x8GvjXealDbyLoPiSVrqGVcssUzMWkU+gyeK/L/DzP6bzKvSqO3tXdetz9d8VOG6tPKcLWpK/skoy9LHnP7O/jyP4ZfG/wzr0p/cWF+vmD/YcbSfwzX69aTqUGraZb3VvIskFwgkjdTkMCMgivxRwD/C33Sv0BOT+tfTX7Kv8AwUV1T4MaPb6F4htZdY0eE7YZIz++t1HAHPXA9a97xC4RxOYcuNwq5pxVmv8AI+e8L+NsNlEp4LGvlhJ3T7PzP0dU1Q8Sa7B4b0O6vrqVYre1jaWR24CqBk/yr53k/wCCp3w3i01pFXWGnUf6k22Gz6da+bf2sf8AgoDq3x402bQtJt5ND8P3P+t3f8fF0AeOf4QeK/Msn4GzXF4iNOdNxjfVvTQ/Xs78R8nwuFlOjVU520S7+Z4v8WPGS/Eb4oeItcRmMep6hPPGWGC0Zdtn/juKzfDGlya/4q0+xjRmmvJ44UA5yWYY/LFUnO49MbeMDt+VfRv/AATd/Z+n+JvxaHiS8icaL4adZUfb8tzP1C/8BPp6V+/ZviqOU5VJylpGPKvN2P5pyPA184zmEYR1lLmb7K5+iWk6f/ZfhG3tV6W9qsQ/Bcf0r8e/isuz4seKh6a1eD/yO9fsheLssZv9w1+OHxXH/F1PFTf9Rm7P/kZ6/L/CeXNjK8n1S/Nn69410+TB4WC6O33JDPhyg/4WL4d/2tXtc/8Af+Ov2UsDmzj/AN0V+Nvw35+I3hz/ALCtr/6Oir9ktP8A+POP/dH8qXi5/vND/C/0NfBH/d8R6omooor8hP3cKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAa6LIPmAP1qNbKNT91P8AvmpqKNSXCLd2iP7Kmfur/wB80fZU/ur+VSUU+Zh7OPZEItFB6L+VAskLcrGfT5elTUUczF7OHZfcNjiWL7oCjGMAYpwGDRRSLCiiigAooooAKKKKACiiigApCMmlooARl3D/AOtUa2aD+Ff++alooWmqJcU90R/ZU/ur+VAtkH8K/lUlFVzMPZx7IZ9mj/uL+VI1pGx+6v5VJRS5mL2cOyGLAsYwo2/SnjgUUUi0klZEc8HnRsrfdYYNfnL+3L+xXq/w58eX3iTw7YzX3h7VJWuJooQWeycks5x/dyTiv0eqG7so763aOaNJEcYZWGQRXvcO8Q4nKMT7ehqnuu58rxZwrhs9wvsK2kls+x+KJdd/l/NvXkKw2sP14NPVsjJd1/2SMfrnn61+rvjr9jD4c/EO5afUPDOn+e5JMkSeUxJ6/dxXN2H/AATg+FNlcCT/AIR/zNvQPcyMo/Ativ12n4sYGUL1KUr/ACPwup4K5nGpalVjbufGv/BPXx3d+Ef2mdNW1jnuIdWiayuljXcqLyQT7huc1+mHiDQLTxXolxp9/Ck9peRmORHHDAjBFY3gL4JeF/hjbxx6Houn2PljAdIhv6Y+91rqViCLtXp7nNflnFOf081x/wBdpQ5P+B1P2jgvhapk+WvAYmftE+nTXofnP+1d/wAE69c+GurXWseD7eXVtBlLSG0TLTWYJJ2r1LKBwCSTxzXzLfW0ulXphu42t5V4Md0CjAjsCa/bJow67Sqn61xnjn9nnwb8R4yuseH9Muyf4jCFb8xg/rX1mQ+J2JwsFSxsOdLr1PiOJPB3D4qo6+XT9m39nofj5nfyRFz/ALYNIxVQOc88L7+xBzX6gz/8E4fhXNKzf2CybiTtW6lCj6DdW74S/Ye+Gfg6eOW38L6fJJFyrTKZefU7ic19TV8V8vUbwpSb+R8dR8Fc0crVasUj84vgp+zF4x+POtww6PpdxHZswE9/cL5dvCO5GeWP0r9H/wBlj9lrR/2afBS2dq32zVLoB72+f707Y6KP4VB6AfjmvTdK0Gz0OzW3s7W3tYIwFWOKMKqgegHFWtlfmnE3GmMzf92/dp/yr9T9c4Q8PcFkn75+/V7vp6IbtrkfjX8F9F+OvgS80HWrfzbe6QhHBKtE3ZgQQcg4+tdhtO3FAj5r5GjWqUZqrSfLJdj7rFYWliKUqNaPNGW6Z+Vv7Q/7EnjD4DanI32O41rRMsyahbJlgueN6jgHHXFeOclvLZtki87WG1h+tftjc2EV7A0U0ccsb8MrjcpH0rznx3+x/wDDv4izNLqXhfS2mbOXji8pjn12Yr9ayfxSqUoKnjqfM19pb/ifhufeC8KlSVXLKvKn9mWx+S3nbR8+4E9CHFMjkM5WKNvMZm+4p3u34Cv08j/4Jr/CmKfzF0OTrkL9rl2j2A3V2ngb9kzwD8PJUk03w3p0cyYxI6GR/rliea97E+LOCUb0aUm/OyPn8J4LZm5Wr1IpeWp8A/s1/sOeKvjjqlvcXlrLonh3eGaeZNssqDsq+hFfpB8Kvhfo/wAJPBVjoei2otbOzjAUAnc5xyzE8lj1Oa6G3sorWFY441jVBhQowBUmMV+U8ScV4zOKl6ukekVt/wAOfs3CfBOCyKn+596b3k9yvqjFNPm25+4RX46fF8qnxZ8WLwMa1eA/MP8Anu/vX7JMu9cN0rzfUP2Rfh3quoXF1ceFdHmnupWmld4NzSOxyzEnuSSa7uC+KKeS151asHLmVtDzfEDgyvn9KnTozUeV9T8r/htKv/Cx/DoDLzqtrjOC2fNHYH2H5V+ymn/8ecf+6K87sv2RPh3p99HcQ+E9HjmhdZEZYMFWU5Ug+xr0iNdi7fSjjPiilnVWnUpQceVNaj8PuDa+QUqsK01Lmd9B1FFFfFn6KFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/Z" alt="Base64 Image" />
+                    </div>
+            
+            <div class="toolbar">
+                <button class="btn btn-primary" @click="$refs.fileInput.click()">
+                    <i class="fas fa-upload"></i>
+                    Upload
+                </button>
+                
+                <div class="divider" x-show="imageLoaded"></div>
+                
+                <button class="btn" @click="$refs.pngOverlayInput.click()" x-show="imageLoaded">
+                    <i class="fas fa-image"></i>
+                    Add PNG
+                </button>
+                
+                <button class="btn" 
+                        :class="{ 'btn-primary': addTextMode }"
+                        @click="addTextElement()" 
+                        x-show="imageLoaded">
+                    <i class="fas fa-font"></i>
+                    <span x-text="addTextMode ? 'Click to Place Text' : 'Add Text'"></span>
+                </button>
+                
+                <div class="divider" x-show="imageLoaded"></div>
+                
+                <button class="btn" @click="$refs.coordsInput.click()" x-show="imageLoaded">
+                    <i class="fas fa-file-import"></i>
+                    Load
+                </button>
+                
+                <button class="btn" @click="downloadCoordinates()" x-show="imageLoaded && hasAnnotationsInDocument">
+                    <i class="fas fa-file-download"></i>
+                    Save
+                </button>
+                
+                <div class="divider" x-show="imageLoaded"></div>
+                
+                <label style="font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 6px;" x-show="imageLoaded">
+                    Numbering:
+                    <select x-model="numberingMode" @change="handleNumberingModeChange()" class="select-input">
+                        <option value="continuous">Continue Across Pages</option>
+                        <option value="restart">Restart On Each Page</option>
+                    </select>
+                </label>
+                
+                <label style="font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 6px;" x-show="imageLoaded">
+                    Size:
+                    <input type="number" x-model.number="markerSize" min="10" max="100" step="5" class="size-input">
+                </label>
+                
+                <div class="page-nav" x-show="pageCount > 1">
+                    <button class="btn" @click="goToPreviousPage()" :disabled="currentPageIndex === 0 || isExporting">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="page-indicator" x-text="`Page ${currentPageNumber} / ${pageCount}`"></div>
+                    <button class="btn" @click="goToNextPage()" :disabled="currentPageIndex >= pageCount - 1 || isExporting">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <button class="btn" @click="undo()" :disabled="!canUndo" x-show="imageLoaded">
+                    <i class="fas fa-undo"></i>
+                </button>
+                
+                <button class="btn" @click="redo()" :disabled="!canRedo" x-show="imageLoaded">
+                    <i class="fas fa-redo"></i>
+                </button>
+                
+                <button class="btn" @click="clearAllMarkers()" x-show="imageLoaded && hasAnnotationsOnCurrentPage">
+                    <i class="fas fa-trash"></i>
+                    Clear
+                </button>
+                
+                <div class="divider" x-show="imageLoaded"></div>
+                
+                <button class="btn btn-primary" @click="openDownloadModal()" x-show="imageLoaded">
+                    <i class="fas fa-download"></i>
+                    Download
+                </button>
+            </div>
+        </div>
+        
+        <!-- Canvas Area -->
+        <div class="canvas-container">
+            <!-- Rulers -->
+            <div class="ruler-corner" x-show="imageLoaded">
+                <i class="fas fa-ruler-combined"></i>
+            </div>
+            
+            <div class="ruler-horizontal" x-show="imageLoaded" x-ref="rulerH">
+                <template x-for="i in 100" :key="'h'+i">
+                    <div>
+                        <div class="ruler-mark" 
+                             :class="{ 'major': i % 10 === 0 }"
+                             :style="`left: ${i * 50}px`"></div>
+                        <div class="ruler-label" 
+                             x-show="i % 10 === 0"
+                             :style="`left: ${i * 50}px`"
+                             x-text="i * 50"></div>
+                    </div>
+                </template>
+            </div>
+            
+            <div class="ruler-vertical" x-show="imageLoaded" x-ref="rulerV">
+                <template x-for="i in 100" :key="'v'+i">
+                    <div>
+                        <div class="ruler-mark" 
+                             :class="{ 'major': i % 10 === 0 }"
+                             :style="`top: ${i * 50}px`"></div>
+                        <div class="ruler-label" 
+                             x-show="i % 10 === 0"
+                             :style="`top: ${i * 50}px`"
+                             x-text="i * 50"></div>
+                    </div>
+                </template>
+            </div>
+            
+            <!-- Canvas Workspace -->
+            <div class="canvas-workspace">
+                <!-- Upload Overlay -->
+                <div class="upload-overlay" 
+                     x-show="!imageLoaded || isLoadingDocument"
+                     @drop.prevent="handleFileDrop($event)"
+                     @dragover.prevent="isDragging = true"
+                     @dragleave.prevent="isDragging = false">
+                    <div class="upload-box" @click="!isLoadingDocument && $refs.fileInput.click()">
+                        <i class="fas" :class="isLoadingDocument ? 'fa-spinner fa-spin' : 'fa-cloud-upload-alt'"></i>
+                        <h2 x-text="isLoadingDocument ? 'Processing Document' : 'Upload Your Drawing or PDF'"></h2>
+                        <p x-text="isLoadingDocument ? 'Rendering PDF pages, please wait...' : 'Drag & drop or click to select an image or PDF'"></p>
+                    </div>
+                </div>
+                
+                <!-- Canvas Wrapper -->
+                <div class="canvas-wrapper" 
+                 x-show="imageLoaded"
+                 x-ref="canvasWrapper"
+                 :style="`transform: translate(${panX}px, ${panY}px) scale(${zoom})`"
+                 :class="{ 'dragging': isPanning }"
+                 @mousedown="startPan($event)"
+                 @mousemove="handlePan($event)"
+                 @mouseup="endPan($event)"
+                 @mouseleave="endPan($event)"
+                 @touchstart="startPan($event)"
+                 @touchmove="handlePan($event)"
+                 @touchend="endPan($event)"
+                 @wheel.prevent="handleZoom($event)"
+                 @click="addMarker($event)">
+                
+                <img :src="imageSrc" 
+                     class="drawing-image" 
+                     x-ref="drawingImage"
+                     @load="imageLoadComplete()">
+                
+                <!-- PNG Overlays -->
+                <template x-for="overlay in pngOverlays" :key="overlay.id">
+                    <div class="png-overlay"
+                         :class="{ 'selected': selectedOverlay?.id === overlay.id }"
+                         :style="`
+                             left: ${overlay.x}px;
+                             top: ${overlay.y}px;
+                             width: ${overlay.width}px;
+                             height: ${overlay.height}px;
+                             z-index: 5;
+                         `"
+                         @mousedown.stop="startDragOverlay($event, overlay)"
+                         @click.stop="selectOverlay(overlay)">
+                        <img :src="overlay.src" alt="overlay">
+                        <div class="resize-handle" @mousedown.stop="startResizeOverlay($event, overlay)"></div>
+                    </div>
+                </template>
+                
+                <!-- Text Elements -->
+                <template x-for="text in textElements" :key="text.id">
+                    <div class="text-element"
+                         :class="{ 'selected': selectedText?.id === text.id }"
+                         :style="`
+                             left: ${text.x}px;
+                             top: ${text.y}px;
+                             font-size: ${text.fontSize}px;
+                             font-weight: ${text.fontWeight};
+                             color: ${text.color};
+                             z-index: 6;
+                         `"
+                         @mousedown.stop="startDragText($event, text)"
+                         @dblclick.stop="editTextElement(text)"
+                         @click.stop="selectText(text)">
+                        <span x-text="text.value"></span>
+                    </div>
+                </template>
+                
+                <!-- Markers -->
+                <template x-for="marker in markers" :key="marker.id">
+                    <div class="marker"
+                         :class="[marker.shape, { 'dragging-marker': draggingMarker?.id === marker.id }]"
+                         :style="`
+                             left: ${marker.x}px;
+                             top: ${marker.y}px;
+                             width: ${markerSize}px;
+                             height: ${markerSize}px;
+                             border: 2px solid rgb(62,73,204);
+                             color: rgb(62,73,204);
+                             font-size: ${markerSize * 0.3}px;
+                             transform: rotate(${marker.rotation}deg);
+                             background: transparent;
+                         `"
+                         @mousedown.stop="startDragMarker($event, marker)"
+                         @dblclick="openEditModal(marker)"
+                         @contextmenu.prevent="openEditModal(marker)">
+                        <span x-text="marker.value"></span>
+                    </div>
+                </template>
+            </div>
+            </div><!-- End canvas-workspace -->
+            
+            <!-- Zoom Controls -->
+            <div class="zoom-controls" x-show="imageLoaded">
+                <button class="zoom-btn" @click="zoomIn()">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <div class="zoom-level" x-text="`${Math.round(zoom * 100)}%`"></div>
+                <button class="zoom-btn" @click="zoomOut()">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Marker Edit Modal -->
+        <div class="modal" x-show="editingMarker" @click.self="closeEditModal()">
+            <div class="modal-content">
+                <div class="modal-header">Edit Marker</div>
+                
+                <div class="form-group">
+                    <label>Value</label>
+                    <input type="text" x-model="editingMarker.value">
+                </div>
+                
+                <div class="form-group">
+                    <label>Shape</label>
+                    <select x-model="editingMarker.shape">
+                        <option value="circle">Circle</option>
+                        <option value="rectangle">Rectangle</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Rotation (0-180°)</label>
+                    <input type="number" x-model.number="editingMarker.rotation" min="0" max="180" step="15">
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn" @click="deleteMarker()">Delete</button>
+                    <button class="btn" @click="closeEditModal()">Cancel</button>
+                    <button class="btn btn-primary" @click="saveMarkerEdit()">Save</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Text Edit Modal -->
+        <div class="modal" x-show="editingText" @click.self="editingText = null">
+            <div class="modal-content">
+                <div class="modal-header">Edit Text</div>
+                
+                <div class="form-group">
+                    <label>Text</label>
+                    <input type="text" x-model="editingText.value">
+                </div>
+                
+                <div class="form-group">
+                    <label>Font Size</label>
+                    <input type="number" x-model.number="editingText.fontSize" min="10" max="200">
+                </div>
+                
+                <div class="form-group">
+                    <label>Font Weight</label>
+                    <select x-model="editingText.fontWeight">
+                        <option value="400">Normal</option>
+                        <option value="500">Medium</option>
+                        <option value="600">Semi-Bold</option>
+                        <option value="700">Bold</option>
+                        <option value="800">Extra Bold</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" x-model="editingText.color">
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn" @click="deleteText()">Delete</button>
+                    <button class="btn" @click="editingText = null">Cancel</button>
+                    <button class="btn btn-primary" @click="saveTextEdit()">Save</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Download Modal -->
+        <div class="modal" x-show="showDownloadModal" @click.self="closeDownloadModal()">
+            <div class="modal-content">
+                <div class="modal-header">Download Options</div>
+                
+                <div class="compression-info">
+                    <div style="font-size: 13px; color: #6b7280;">
+                        Format:
+                        <strong style="color: #374151;" x-text="pageCount > 1 ? 'ZIP (PNG files inside)' : 'PNG'"></strong>
+                    </div>
+                    <div class="size-comparison">
+                        <div class="size-item">
+                            <div class="size-label">Current Size</div>
+                            <div class="size-value" x-text="formatFileSize(downloadEstimate?.originalSize)"></div>
+                        </div>
+                        <div class="size-item">
+                            <div class="size-label">After Compression</div>
+                            <div class="size-value compressed" x-text="formatFileSize(downloadEstimate?.compressedSize)"></div>
+                        </div>
+                    </div>
+                    <div class="savings" x-text="downloadEstimateMessage()"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Image Compression Percentage</label>
+                    <input type="range"
+                           x-model.number="downloadCompressionPercent"
+                           min="10"
+                           max="100"
+                           step="5"
+                           @input="queueDownloadEstimate()"
+                           style="width: 100%;">
+                    <div style="text-align: center; margin-top: 6px; font-size: 14px; color: #6b7280;" x-text="`${downloadCompressionPercent}%`"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn" @click="closeDownloadModal()">Cancel</button>
+                    <button class="btn btn-primary" @click="finalizeDownload()" :disabled="isPreparingDownload || !preparedDownloadPackage">
+                        <span x-text="isPreparingDownload ? 'Calculating...' : 'Download'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hidden Inputs -->
+        <input type="file" x-ref="fileInput" accept="image/*,.pdf,application/pdf" @change="handleFileUpload($event)">
+        <input type="file" x-ref="coordsInput" accept=".json" @change="handleCoordinatesUpload($event)">
+        <input type="file" x-ref="pngOverlayInput" accept="image/png" @change="handlePngOverlayUpload($event)">
+    </div>
+    
+    <script>
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+        }
+        
+        function drawingApp() {
+            return {
+                // State
+                imageLoaded: false,
+                imageSrc: null,
+                markers: [],
+                pngOverlays: [],
+                textElements: [],
+                pages: [],
+                currentPageIndex: 0,
+                documentName: 'drawing',
+                numberingMode: 'continuous',
+                nextIntegerMarker: 1,
+                markerSize: 40,
+                isLoadingDocument: false,
+                isExporting: false,
+                showDownloadModal: false,
+                downloadCompressionPercent: 100,
+                downloadEstimate: null,
+                downloadOriginalPackage: null,
+                preparedDownloadPackage: null,
+                isPreparingDownload: false,
+                downloadEstimateRequestId: 0,
+                downloadEstimateTimer: null,
+                
+                // Pan & Zoom
+                zoom: 1,
+                panX: 0,
+                panY: 0,
+                isPanning: false,
+                lastPanX: 0,
+                lastPanY: 0,
+                panStartX: 0,
+                panStartY: 0,
+                hasPanned: false,
+                
+                // Drag & Drop
+                isDragging: false,
+                
+                // Editing
+                editingMarker: null,
+                editingText: null,
+                selectedOverlay: null,
+                selectedText: null,
+                addTextMode: false,
+                
+                // Marker Dragging
+                draggingMarker: null,
+                markerDragOffsetX: 0,
+                markerDragOffsetY: 0,
+                wasMarkerDragging: false,
+                
+                // PNG Overlay
+                draggingOverlay: null,
+                overlayDragOffsetX: 0,
+                overlayDragOffsetY: 0,
+                resizingOverlay: null,
+                
+                // Text Dragging
+                draggingText: null,
+                textDragOffsetX: 0,
+                textDragOffsetY: 0,
+                
+                // History
+                history: [],
+                historyIndex: -1,
+                
+                get canUndo() {
+                    return this.historyIndex > 0;
+                },
+                
+                get canRedo() {
+                    return this.historyIndex < this.history.length - 1;
+                },
+                
+                get pageCount() {
+                    return this.pages.length;
+                },
+                
+                get currentPageNumber() {
+                    return this.currentPageIndex + 1;
+                },
+                
+                get hasAnnotationsOnCurrentPage() {
+                    return this.markers.length > 0 || this.pngOverlays.length > 0 || this.textElements.length > 0;
+                },
+                
+                get hasAnnotationsInDocument() {
+                    if (!this.pages.length) {
+                        return this.hasAnnotationsOnCurrentPage;
+                    }
+                    
+                    return this.pages.some((page) => {
+                        const markerCount = Array.isArray(page.markers) ? page.markers.length : 0;
+                        const overlayCount = Array.isArray(page.pngOverlays) ? page.pngOverlays.length : 0;
+                        const textCount = Array.isArray(page.textElements) ? page.textElements.length : 0;
+                        return markerCount > 0 || overlayCount > 0 || textCount > 0;
+                    });
+                },
+                
+                createId(prefix = 'id') {
+                    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                },
+                
+                deepClone(value) {
+                    return JSON.parse(JSON.stringify(value));
+                },
+                
+                createPage(imageSrc = null, index = 0) {
+                    return {
+                        id: this.createId(`page-${index + 1}`),
+                        imageSrc,
+                        markers: [],
+                        pngOverlays: [],
+                        textElements: [],
+                        nextIntegerMarker: 1
+                    };
+                },
+                
+                normalizePage(page, index) {
+                    const markers = Array.isArray(page.markers) ? this.deepClone(page.markers) : [];
+                    const pngOverlays = Array.isArray(page.pngOverlays) ? this.deepClone(page.pngOverlays) : [];
+                    const textElements = Array.isArray(page.textElements) ? this.deepClone(page.textElements) : [];
+                    
+                    return {
+                        id: page.id || this.createId(`page-${index + 1}`),
+                        imageSrc: page.imageSrc || page.src || null,
+                        markers,
+                        pngOverlays,
+                        textElements,
+                        nextIntegerMarker: Number.isFinite(page.nextIntegerMarker)
+                            ? page.nextIntegerMarker
+                            : this.calculateNextIntegerForMarkers(markers)
+                    };
+                },
+                
+                resetViewportOnly() {
+                    this.zoom = 1;
+                    this.panX = 0;
+                    this.panY = 0;
+                    this.isPanning = false;
+                    this.hasPanned = false;
+                },
+                
+                clearDocumentState(resetHistory = false) {
+                    this.imageLoaded = false;
+                    this.imageSrc = null;
+                    this.pages = [];
+                    this.currentPageIndex = 0;
+                    this.markers = [];
+                    this.pngOverlays = [];
+                    this.textElements = [];
+                    this.nextIntegerMarker = 1;
+                    this.selectedOverlay = null;
+                    this.selectedText = null;
+                    this.editingMarker = null;
+                    this.editingText = null;
+                    this.closeDownloadModal();
+                    this.cancelTextMode();
+                    this.resetViewportOnly();
+                    
+                    if (resetHistory) {
+                        this.history = [];
+                        this.historyIndex = -1;
+                    }
+                },
+                
+                calculateNextIntegerForMarkers(markers) {
+                    const values = (markers || [])
+                        .map((marker) => String(marker.value).trim())
+                        .filter((value) => /^\d+$/.test(value))
+                        .map((value) => parseInt(value, 10))
+                        .filter((value) => Number.isInteger(value));
+                    
+                    return values.length ? Math.max(...values) + 1 : 1;
+                },
+                
+                calculateGlobalNextInteger() {
+                    const values = [];
+                    
+                    this.pages.forEach((page) => {
+                        (page.markers || []).forEach((marker) => {
+                            const rawValue = String(marker.value).trim();
+                            if (/^\d+$/.test(rawValue)) {
+                                values.push(parseInt(rawValue, 10));
+                            }
+                        });
+                    });
+                    
+                    return values.length ? Math.max(...values) + 1 : 1;
+                },
+                
+                recalculateAllNextIntegerMarkers() {
+                    if (!this.pages.length) {
+                        this.nextIntegerMarker = 1;
+                        return;
+                    }
+                    
+                    if (this.numberingMode === 'continuous') {
+                        const next = this.calculateGlobalNextInteger();
+                        this.pages.forEach((page) => {
+                            page.nextIntegerMarker = next;
+                        });
+                        this.nextIntegerMarker = next;
+                        return;
+                    }
+                    
+                    this.pages.forEach((page, index) => {
+                        page.nextIntegerMarker = this.calculateNextIntegerForMarkers(page.markers);
+                        if (index === this.currentPageIndex) {
+                            this.nextIntegerMarker = page.nextIntegerMarker;
+                        }
+                    });
+                },
+                
+                syncCurrentPageState() {
+                    const page = this.pages[this.currentPageIndex];
+                    if (!page) return;
+                    
+                    page.imageSrc = this.imageSrc;
+                    page.markers = this.deepClone(this.markers);
+                    page.pngOverlays = this.deepClone(this.pngOverlays);
+                    page.textElements = this.deepClone(this.textElements);
+                    this.recalculateAllNextIntegerMarkers();
+                },
+                
+                loadCurrentPageState(resetViewport = true) {
+                    const page = this.pages[this.currentPageIndex];
+                    if (!page) {
+                        this.clearDocumentState();
+                        return;
+                    }
+                    
+                    this.imageSrc = page.imageSrc;
+                    this.markers = this.deepClone(page.markers || []);
+                    this.pngOverlays = this.deepClone(page.pngOverlays || []);
+                    this.textElements = this.deepClone(page.textElements || []);
+                    this.imageLoaded = Boolean(this.imageSrc);
+                    this.selectedOverlay = null;
+                    this.selectedText = null;
+                    this.editingMarker = null;
+                    this.editingText = null;
+                    this.nextIntegerMarker = page.nextIntegerMarker || this.calculateNextIntegerForMarkers(this.markers);
+                    
+                    if (resetViewport) {
+                        this.resetViewportOnly();
+                    }
+                    
+                    this.$nextTick(() => {
+                        if (this.imageLoaded) {
+                            this.centerImageWhenReady();
+                        }
+                    });
+                },
+                
+                setPages(pages, options = {}) {
+                    const {
+                        currentPageIndex = 0,
+                        resetHistory = true,
+                        resetViewport = true
+                    } = options;
+                    
+                    const normalizedPages = pages.map((page, index) => this.normalizePage(page, index));
+                    if (!normalizedPages.length) {
+                        this.clearDocumentState(resetHistory);
+                        return;
+                    }
+                    
+                    this.pages = normalizedPages;
+                    this.currentPageIndex = Math.min(Math.max(currentPageIndex, 0), this.pages.length - 1);
+                    this.recalculateAllNextIntegerMarkers();
+                    this.loadCurrentPageState(resetViewport);
+                    
+                    if (resetHistory) {
+                        this.history = [];
+                        this.historyIndex = -1;
+                    }
+                },
+                
+                async waitForDomPaint() {
+                    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                },
+                
+                async waitForCurrentImage() {
+                    await this.$nextTick();
+                    
+                    const image = this.$refs.drawingImage;
+                    if (!image) return;
+                    
+                    if (image.complete && image.naturalWidth > 0) {
+                        return;
+                    }
+                    
+                    await new Promise((resolve) => {
+                        const done = () => {
+                            image.removeEventListener('load', done);
+                            image.removeEventListener('error', done);
+                            resolve();
+                        };
+                        
+                        image.addEventListener('load', done, { once: true });
+                        image.addEventListener('error', done, { once: true });
+                    });
+                },
+                
+                async centerImageWhenReady() {
+                    await this.waitForCurrentImage();
+                    this.imageLoadComplete();
+                },
+                
+                imageLoadComplete() {
+                    this.$nextTick(() => {
+                        const wrapper = this.$refs.canvasWrapper;
+                        const image = this.$refs.drawingImage;
+                        if (!wrapper || !image) return;
+                        
+                        const container = wrapper.parentElement;
+                        if (!container) return;
+                        
+                        this.panX = (container.offsetWidth - image.offsetWidth) / 2;
+                        this.panY = (container.offsetHeight - image.offsetHeight) / 2;
+                    });
+                },
+                
+                async readFileAsDataUrl(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => resolve(event.target.result);
+                        reader.onerror = () => reject(new Error('Failed to read file.'));
+                        reader.readAsDataURL(file);
+                    });
+                },
+                
+                // File Upload
+                async handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        await this.loadDocument(file);
+                    }
+                    event.target.value = '';
+                },
+                
+                async handleFileDrop(event) {
+                    this.isDragging = false;
+                    const file = event.dataTransfer.files[0];
+                    if (file) {
+                        await this.loadDocument(file);
+                    }
+                },
+                
+                async loadDocument(file) {
+                    if (this.isLoadingDocument || this.isExporting) return;
+                    
+                    this.documentName = (file.name || 'drawing').replace(/\.[^.]+$/, '') || 'drawing';
+                    
+                    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) {
+                        await this.loadPdf(file);
+                        return;
+                    }
+                    
+                    await this.loadImageFile(file);
+                },
+                
+                async loadImageFile(file) {
+                    this.isLoadingDocument = true;
+                    
+                    try {
+                        const imageSrc = await this.readFileAsDataUrl(file);
+                        this.setPages([this.createPage(imageSrc, 0)], {
+                            currentPageIndex: 0,
+                            resetHistory: true,
+                            resetViewport: true
+                        });
+                    } catch (error) {
+                        console.error('Image upload failed:', error);
+                        alert('Failed to load the image file.');
+                    } finally {
+                        this.isLoadingDocument = false;
+                    }
+                },
+                
+                async loadPdf(file) {
+                    if (!window.pdfjsLib) {
+                        alert('PDF support could not be loaded. Please refresh and try again.');
+                        return;
+                    }
+                    
+                    this.isLoadingDocument = true;
+                    
+                    try {
+                        const buffer = await file.arrayBuffer();
+                        const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+                        const pages = [];
+                        
+                        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+                            const pdfPage = await pdf.getPage(pageNumber);
+                            const viewport = pdfPage.getViewport({ scale: 1.5 });
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d', { alpha: false });
+                            
+                            canvas.width = Math.ceil(viewport.width);
+                            canvas.height = Math.ceil(viewport.height);
+                            
+                            await pdfPage.render({
+                                canvasContext: context,
+                                viewport
+                            }).promise;
+                            
+                            pages.push(this.createPage(canvas.toDataURL('image/png'), pageNumber - 1));
+                        }
+                        
+                        this.setPages(pages, {
+                            currentPageIndex: 0,
+                            resetHistory: true,
+                            resetViewport: true
+                        });
+                    } catch (error) {
+                        console.error('PDF upload failed:', error);
+                        alert('Failed to load the PDF file.');
+                    } finally {
+                        this.isLoadingDocument = false;
+                    }
+                },
+                
+                async goToPage(index, options = {}) {
+                    const {
+                        saveCurrent = true,
+                        resetViewport = true
+                    } = options;
+                    
+                    if (index < 0 || index >= this.pages.length || index === this.currentPageIndex) {
+                        return;
+                    }
+                    
+                    if (saveCurrent) {
+                        this.syncCurrentPageState();
+                    }
+                    
+                    this.currentPageIndex = index;
+                    this.loadCurrentPageState(resetViewport);
+                    await this.waitForCurrentImage();
+                    await this.waitForDomPaint();
+                },
+                
+                async goToPreviousPage() {
+                    await this.goToPage(this.currentPageIndex - 1);
+                },
+                
+                async goToNextPage() {
+                    await this.goToPage(this.currentPageIndex + 1);
+                },
+                
+                handleNumberingModeChange() {
+                    this.syncCurrentPageState();
+                    this.recalculateAllNextIntegerMarkers();
+                    const page = this.pages[this.currentPageIndex];
+                    this.nextIntegerMarker = page ? page.nextIntegerMarker : 1;
+                },
+                
+                // Add Marker
+                addMarker(event) {
+                    if (this.hasPanned || this.draggingMarker || this.wasMarkerDragging || 
+                        this.draggingOverlay || this.draggingText ||
+                        event.target.classList.contains('marker') ||
+                        event.target.classList.contains('text-element') ||
+                        event.target.classList.contains('png-overlay')) {
+                        return;
+                    }
+                    
+                    const wrapperRect = this.$refs.canvasWrapper.getBoundingClientRect();
+                    const x = (event.clientX - wrapperRect.left) / this.zoom;
+                    const y = (event.clientY - wrapperRect.top) / this.zoom;
+                    
+                    // If in text mode, place text at click position
+                    if (this.addTextMode) {
+                        this.placeTextAtPosition(x - 20, y - 12); // Offset to center
+                        return;
+                    }
+                    
+                    // Otherwise add marker
+                    const marker = {
+                        id: this.createId('marker'),
+                        x: x - (this.markerSize / 2),
+                        y: y - (this.markerSize / 2),
+                        value: this.nextIntegerMarker,
+                        type: 'integer',
+                        shape: 'circle',
+                        rotation: 0
+                    };
+                    
+                    this.markers.push(marker);
+                    this.nextIntegerMarker++;
+                    this.saveToHistory();
+                },
+                
+                // PNG Overlay
+                async handlePngOverlayUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    try {
+                        const src = await this.readFileAsDataUrl(file);
+                        const img = new Image();
+                        img.onload = () => {
+                            const imgWidth = img.width > 200 ? 200 : img.width;
+                            const imgHeight = (img.width > 200 ? 200 : img.width) * (img.height / img.width);
+                            
+                            const canvasRect = this.$refs.drawingImage.getBoundingClientRect();
+                            const centerX = (canvasRect.width / 2) - (imgWidth / 2);
+                            const centerY = (canvasRect.height / 2) - (imgHeight / 2);
+                            
+                            const overlay = {
+                                id: this.createId('overlay'),
+                                src,
+                                x: centerX,
+                                y: centerY,
+                                width: imgWidth,
+                                height: imgHeight
+                            };
+                            this.pngOverlays.push(overlay);
+                            this.selectedOverlay = overlay;
+                            this.saveToHistory();
+                        };
+                        img.src = src;
+                    } catch (error) {
+                        console.error('PNG overlay upload failed:', error);
+                        alert('Failed to load the PNG overlay.');
+                    }
+                    event.target.value = '';
+                },
+                
+                selectOverlay(overlay) {
+                    this.selectedOverlay = overlay;
+                    this.selectedText = null;
+                },
+                
+                startDragOverlay(event, overlay) {
+                    this.draggingOverlay = overlay;
+                    this.selectedOverlay = overlay;
+                    
+                    const clientX = event.clientX;
+                    const clientY = event.clientY;
+                    const wrapperRect = this.$refs.canvasWrapper.getBoundingClientRect();
+                    
+                    this.overlayDragOffsetX = (clientX - wrapperRect.left) / this.zoom - overlay.x;
+                    this.overlayDragOffsetY = (clientY - wrapperRect.top) / this.zoom - overlay.y;
+                    
+                    const handleMove = (e) => {
+                        if (!this.draggingOverlay) return;
+                        const rect = this.$refs.canvasWrapper.getBoundingClientRect();
+                        this.draggingOverlay.x = (e.clientX - rect.left) / this.zoom - this.overlayDragOffsetX;
+                        this.draggingOverlay.y = (e.clientY - rect.top) / this.zoom - this.overlayDragOffsetY;
+                    };
+                    
+                    const handleEnd = () => {
+                        if (this.draggingOverlay) {
+                            this.saveToHistory();
+                            this.draggingOverlay = null;
+                        }
+                        document.removeEventListener('mousemove', handleMove);
+                        document.removeEventListener('mouseup', handleEnd);
+                    };
+                    
+                    document.addEventListener('mousemove', handleMove);
+                    document.addEventListener('mouseup', handleEnd);
+                },
+                
+                startResizeOverlay(event, overlay) {
+                    this.resizingOverlay = overlay;
+                    const startX = event.clientX;
+                    const startY = event.clientY;
+                    const startWidth = overlay.width;
+                    const startHeight = overlay.height;
+                    const aspectRatio = startHeight / startWidth;
+                    
+                    const handleMove = (e) => {
+                        if (!this.resizingOverlay) return;
+                        const deltaX = (e.clientX - startX) / this.zoom;
+                        const newWidth = Math.max(50, startWidth + deltaX);
+                        this.resizingOverlay.width = newWidth;
+                        this.resizingOverlay.height = newWidth * aspectRatio;
+                    };
+                    
+                    const handleEnd = () => {
+                        if (this.resizingOverlay) {
+                            this.saveToHistory();
+                            this.resizingOverlay = null;
+                        }
+                        document.removeEventListener('mousemove', handleMove);
+                        document.removeEventListener('mouseup', handleEnd);
+                    };
+                    
+                    document.addEventListener('mousemove', handleMove);
+                    document.addEventListener('mouseup', handleEnd);
+                },
+                
+                // Text Element
+                addTextElement() {
+                    this.addTextMode = true;
+                    // Change cursor to indicate text mode
+                    document.body.style.cursor = 'crosshair';
+                },
+                
+                placeTextAtPosition(x, y) {
+                    const text = {
+                        id: this.createId('text'),
+                        value: 'Text',
+                        x: x,
+                        y: y,
+                        fontSize: 24,
+                        fontWeight: '600',
+                        color: '#1f2937'
+                    };
+                    this.textElements.push(text);
+                    this.selectedText = text;
+                    this.saveToHistory();
+                    
+                    // Exit text mode
+                    this.addTextMode = false;
+                    document.body.style.cursor = '';
+                },
+                
+                cancelTextMode() {
+                    if (this.addTextMode) {
+                        this.addTextMode = false;
+                        document.body.style.cursor = '';
+                    }
+                },
+                
+                selectText(text) {
+                    this.selectedText = text;
+                    this.selectedOverlay = null;
+                },
+                
+                editTextElement(text) {
+                    this.editingText = this.deepClone(text);
+                },
+                
+                saveTextEdit() {
+                    const index = this.textElements.findIndex(t => t.id === this.editingText.id);
+                    if (index !== -1) {
+                        this.textElements[index] = this.deepClone(this.editingText);
+                        this.saveToHistory();
+                    }
+                    this.editingText = null;
+                },
+                
+                deleteText() {
+                    const index = this.textElements.findIndex(t => t.id === this.editingText.id);
+                    if (index !== -1) {
+                        this.textElements.splice(index, 1);
+                        this.saveToHistory();
+                    }
+                    this.editingText = null;
+                },
+                
+                startDragText(event, text) {
+                    this.draggingText = text;
+                    this.selectedText = text;
+                    
+                    const clientX = event.clientX;
+                    const clientY = event.clientY;
+                    const wrapperRect = this.$refs.canvasWrapper.getBoundingClientRect();
+                    
+                    this.textDragOffsetX = (clientX - wrapperRect.left) / this.zoom - text.x;
+                    this.textDragOffsetY = (clientY - wrapperRect.top) / this.zoom - text.y;
+                    
+                    const handleMove = (e) => {
+                        if (!this.draggingText) return;
+                        const rect = this.$refs.canvasWrapper.getBoundingClientRect();
+                        this.draggingText.x = (e.clientX - rect.left) / this.zoom - this.textDragOffsetX;
+                        this.draggingText.y = (e.clientY - rect.top) / this.zoom - this.textDragOffsetY;
+                    };
+                    
+                    const handleEnd = () => {
+                        if (this.draggingText) {
+                            this.saveToHistory();
+                            this.draggingText = null;
+                        }
+                        document.removeEventListener('mousemove', handleMove);
+                        document.removeEventListener('mouseup', handleEnd);
+                    };
+                    
+                    document.addEventListener('mousemove', handleMove);
+                    document.addEventListener('mouseup', handleEnd);
+                },
+                
+                // Marker Dragging
+                startDragMarker(event, marker) {
+                    event.preventDefault();
+                    this.draggingMarker = marker;
+                    this.wasMarkerDragging = true;
+                    this.isPanning = false;
+                    
+                    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+                    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                    const wrapperRect = this.$refs.canvasWrapper.getBoundingClientRect();
+                    
+                    this.markerDragOffsetX = (clientX - wrapperRect.left) / this.zoom - marker.x;
+                    this.markerDragOffsetY = (clientY - wrapperRect.top) / this.zoom - marker.y;
+                    
+                    const handleDragMove = (e) => {
+                        if (!this.draggingMarker) return;
+                        const moveX = e.touches ? e.touches[0].clientX : e.clientX;
+                        const moveY = e.touches ? e.touches[0].clientY : e.clientY;
+                        const rect = this.$refs.canvasWrapper.getBoundingClientRect();
+                        
+                        this.draggingMarker.x = (moveX - rect.left) / this.zoom - this.markerDragOffsetX;
+                        this.draggingMarker.y = (moveY - rect.top) / this.zoom - this.markerDragOffsetY;
+                    };
+                    
+                    const handleDragEnd = () => {
+                        if (this.draggingMarker) {
+                            this.saveToHistory();
+                            this.draggingMarker = null;
+                            setTimeout(() => {
+                                this.wasMarkerDragging = false;
+                            }, 100);
+                        }
+                        document.removeEventListener('mousemove', handleDragMove);
+                        document.removeEventListener('mouseup', handleDragEnd);
+                        document.removeEventListener('touchmove', handleDragMove);
+                        document.removeEventListener('touchend', handleDragEnd);
+                    };
+                    
+                    document.addEventListener('mousemove', handleDragMove);
+                    document.addEventListener('mouseup', handleDragEnd);
+                    document.addEventListener('touchmove', handleDragMove);
+                    document.addEventListener('touchend', handleDragEnd);
+                },
+                
+                // Edit Marker
+                openEditModal(marker) {
+                    this.editingMarker = this.deepClone(marker);
+                },
+                
+                closeEditModal() {
+                    this.editingMarker = null;
+                },
+                
+                saveMarkerEdit() {
+                    const index = this.markers.findIndex(m => m.id === this.editingMarker.id);
+                    if (index !== -1) {
+                        const value = String(this.editingMarker.value).trim();
+                        
+                        if (/^\d+$/.test(value)) {
+                            this.editingMarker.type = 'integer';
+                            this.editingMarker.value = parseInt(value, 10);
+                        } else {
+                            this.editingMarker.type = 'string';
+                            this.editingMarker.value = value;
+                        }
+                        
+                        this.markers[index] = this.deepClone(this.editingMarker);
+                        this.saveToHistory();
+                    }
+                    this.closeEditModal();
+                },
+                
+                recalculateNextIntegerMarker() {
+                    this.syncCurrentPageState();
+                },
+                
+                deleteMarker() {
+                    const index = this.markers.findIndex(m => m.id === this.editingMarker.id);
+                    if (index !== -1) {
+                        this.markers.splice(index, 1);
+                        this.saveToHistory();
+                    }
+                    this.closeEditModal();
+                },
+                
+                clearAllMarkers() {
+                    if (confirm('Clear all markers, overlays, and text on this page?')) {
+                        this.markers = [];
+                        this.pngOverlays = [];
+                        this.textElements = [];
+                        this.nextIntegerMarker = 1;
+                        this.saveToHistory();
+                    }
+                },
+                
+                // History
+                saveToHistory() {
+                    if (!this.pages.length) return;
+                    
+                    this.syncCurrentPageState();
+                    
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.history = this.history.slice(0, this.historyIndex + 1);
+                    }
+                    
+                    this.history.push({
+                        pages: this.deepClone(this.pages),
+                        currentPageIndex: this.currentPageIndex,
+                        markerSize: this.markerSize,
+                        numberingMode: this.numberingMode,
+                        documentName: this.documentName
+                    });
+                    
+                    this.historyIndex++;
+                    
+                    if (this.history.length > 50) {
+                        this.history.shift();
+                        this.historyIndex--;
+                    }
+                },
+                
+                restoreFromHistory(state) {
+                    this.pages = state.pages.map((page, index) => this.normalizePage(page, index));
+                    this.currentPageIndex = Math.min(state.currentPageIndex || 0, this.pages.length - 1);
+                    this.markerSize = state.markerSize || this.markerSize;
+                    this.numberingMode = state.numberingMode || this.numberingMode;
+                    this.documentName = state.documentName || this.documentName;
+                    this.recalculateAllNextIntegerMarkers();
+                    this.loadCurrentPageState(false);
+                },
+                
+                undo() {
+                    if (this.canUndo) {
+                        this.historyIndex--;
+                        this.restoreFromHistory(this.history[this.historyIndex]);
+                    }
+                },
+                
+                redo() {
+                    if (this.canRedo) {
+                        this.historyIndex++;
+                        this.restoreFromHistory(this.history[this.historyIndex]);
+                    }
+                },
+                
+                // Pan & Zoom
+                startPan(event) {
+                    if (event.type === 'mousedown' && event.button !== 0) return;
+                    if (event.target.classList.contains('marker') || 
+                        event.target.classList.contains('text-element') ||
+                        event.target.classList.contains('png-overlay')) return;
+                    
+                    this.isPanning = true;
+                    this.hasPanned = false;
+                    
+                    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+                    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                    
+                    this.lastPanX = clientX - this.panX;
+                    this.lastPanY = clientY - this.panY;
+                    this.panStartX = clientX;
+                    this.panStartY = clientY;
+                },
+                
+                handlePan(event) {
+                    if (!this.isPanning) return;
+                    event.preventDefault();
+                    
+                    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+                    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                    
+                    const deltaX = Math.abs(clientX - this.panStartX);
+                    const deltaY = Math.abs(clientY - this.panStartY);
+                    
+                    if (deltaX > 5 || deltaY > 5) {
+                        this.hasPanned = true;
+                    }
+                    
+                    this.panX = clientX - this.lastPanX;
+                    this.panY = clientY - this.lastPanY;
+                },
+                
+                endPan(event) {
+                    this.isPanning = false;
+                },
+                
+                handleZoom(event) {
+                    event.preventDefault();
+                    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+                    this.zoom = Math.max(0.1, Math.min(5, this.zoom + delta));
+                },
+                
+                zoomIn() {
+                    this.zoom = Math.min(5, this.zoom + 0.2);
+                },
+                
+                zoomOut() {
+                    this.zoom = Math.max(0.1, this.zoom - 0.2);
+                },
+                
+                // Download
+                async openDownloadModal() {
+                    if (!this.imageLoaded || this.isExporting || this.isLoadingDocument) {
+                        return;
+                    }
+                    
+                    this.showDownloadModal = true;
+                    this.downloadCompressionPercent = 100;
+                    this.downloadEstimate = null;
+                    this.downloadOriginalPackage = null;
+                    this.preparedDownloadPackage = null;
+                    await this.updateDownloadEstimate(true);
+                },
+                
+                closeDownloadModal() {
+                    this.showDownloadModal = false;
+                    this.isPreparingDownload = false;
+                    this.downloadEstimate = null;
+                    this.downloadOriginalPackage = null;
+                    this.preparedDownloadPackage = null;
+                    this.downloadEstimateRequestId++;
+                    
+                    if (this.downloadEstimateTimer) {
+                        clearTimeout(this.downloadEstimateTimer);
+                        this.downloadEstimateTimer = null;
+                    }
+                },
+                
+                queueDownloadEstimate() {
+                    if (!this.showDownloadModal) {
+                        return;
+                    }
+                    
+                    if (this.downloadEstimateTimer) {
+                        clearTimeout(this.downloadEstimateTimer);
+                    }
+                    
+                    this.downloadEstimateTimer = setTimeout(() => {
+                        this.updateDownloadEstimate(false);
+                    }, 250);
+                },
+                
+                async updateDownloadEstimate(includeOriginal = false) {
+                    const requestId = ++this.downloadEstimateRequestId;
+                    this.isPreparingDownload = true;
+                    this.preparedDownloadPackage = null;
+                    
+                    try {
+                        if (includeOriginal || !this.downloadOriginalPackage) {
+                            this.downloadOriginalPackage = await this.buildDownloadPackage(100);
+                            if (requestId !== this.downloadEstimateRequestId) return;
+                        }
+                        
+                        let selectedPackage = this.downloadOriginalPackage;
+                        if (this.downloadCompressionPercent < 100) {
+                            selectedPackage = await this.buildDownloadPackage(this.downloadCompressionPercent);
+                            if (requestId !== this.downloadEstimateRequestId) return;
+                        }
+                        
+                        this.preparedDownloadPackage = selectedPackage;
+                        this.downloadEstimate = {
+                            originalSize: this.downloadOriginalPackage ? this.downloadOriginalPackage.size : 0,
+                            compressedSize: selectedPackage ? selectedPackage.size : 0,
+                            savings: this.downloadOriginalPackage && selectedPackage
+                                ? Math.max(0, Math.round((1 - (selectedPackage.size / this.downloadOriginalPackage.size)) * 100))
+                                : 0
+                        };
+                    } catch (error) {
+                        console.error('Download estimate failed:', error);
+                        if (requestId === this.downloadEstimateRequestId) {
+                            alert(`Download preparation failed: ${error.message}`);
+                            this.closeDownloadModal();
+                        }
+                    } finally {
+                        if (requestId === this.downloadEstimateRequestId) {
+                            this.isPreparingDownload = false;
+                        }
+                    }
+                },
+                
+                downloadEstimateMessage() {
+                    if (this.isPreparingDownload) {
+                        return 'Calculating download size...';
+                    }
+                    
+                    if (!this.downloadEstimate) {
+                        return 'Move the slider to reduce PNG output dimensions before download.';
+                    }
+                    
+                    if (this.downloadCompressionPercent >= 100) {
+                        return 'No compression applied. Output will download at full size.';
+                    }
+                    
+                    return `Estimated size reduction: ${this.downloadEstimate.savings}%`;
+                },
+                
+                getRenderScaleFromCompression(percent) {
+                    return Math.max(0.3, 2 * (Math.max(10, Math.min(100, percent)) / 100));
+                },
+                
+                async buildDownloadPackage(percent) {
+                    this.syncCurrentPageState();
+                    const originalPageIndex = this.currentPageIndex;
+                    const baseName = this.sanitizeFileName(this.documentName || 'marked-drawing');
+                    const renderScale = this.getRenderScaleFromCompression(percent);
+                    
+                    try {
+                        if (this.pages.length === 1) {
+                            const canvas = await this.renderCurrentPageCanvas(renderScale);
+                            const blob = await this.canvasToBlob(canvas, 'image/png');
+                            return {
+                                blob,
+                                size: blob.size,
+                                filename: `${baseName}-page-1.png`
+                            };
+                        }
+                        
+                        if (!window.JSZip) {
+                            throw new Error('ZIP library is not available.');
+                        }
+                        
+                        const zip = new window.JSZip();
+                        
+                        for (let index = 0; index < this.pages.length; index++) {
+                            await this.goToPage(index, {
+                                saveCurrent: true,
+                                resetViewport: false
+                            });
+                            const canvas = await this.renderCurrentPageCanvas(renderScale);
+                            const blob = await this.canvasToBlob(canvas, 'image/png');
+                            zip.file(`${baseName}-page-${index + 1}.png`, blob);
+                        }
+                        
+                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        return {
+                            blob: zipBlob,
+                            size: zipBlob.size,
+                            filename: `${baseName}-pages.zip`
+                        };
+                    } finally {
+                        if (this.pages.length && this.currentPageIndex !== originalPageIndex) {
+                            await this.goToPage(originalPageIndex, {
+                                saveCurrent: false,
+                                resetViewport: true
+                            });
+                        }
+                    }
+                },
+                
+                async finalizeDownload() {
+                    if (this.isPreparingDownload) {
+                        return;
+                    }
+                    
+                    this.isExporting = true;
+                    
+                    try {
+                        if (!this.preparedDownloadPackage) {
+                            await this.updateDownloadEstimate(!this.downloadOriginalPackage);
+                        }
+                        
+                        if (!this.preparedDownloadPackage) {
+                            throw new Error('Download file is not ready yet.');
+                        }
+                        
+                        this.downloadBlob(this.preparedDownloadPackage.blob, this.preparedDownloadPackage.filename);
+                        this.closeDownloadModal();
+                    } catch (error) {
+                        console.error('Download failed:', error);
+                        alert(`Download failed: ${error.message}`);
+                    } finally {
+                        this.isExporting = false;
+                    }
+                },
+                
+                async renderCurrentPageCanvas(renderScale = 2) {
+                    const wrapper = this.$refs.canvasWrapper;
+                    if (!wrapper) {
+                        throw new Error('Canvas not ready.');
+                    }
+                    
+                    const originalZoom = this.zoom;
+                    const originalPanX = this.panX;
+                    const originalPanY = this.panY;
+                    
+                    this.selectedOverlay = null;
+                    this.selectedText = null;
+                    this.cancelTextMode();
+                    wrapper.classList.add('exporting');
+                    this.zoom = 1;
+                    this.panX = 0;
+                    this.panY = 0;
+                    
+                    await this.waitForDomPaint();
+                    
+                    try {
+                        return await html2canvas(wrapper, {
+                            backgroundColor: '#ffffff',
+                            scale: renderScale,
+                            logging: false,
+                            useCORS: true,
+                            allowTaint: true,
+                            imageTimeout: 30000,
+                            removeContainer: false
+                        });
+                    } finally {
+                        this.zoom = originalZoom;
+                        this.panX = originalPanX;
+                        this.panY = originalPanY;
+                        wrapper.classList.remove('exporting');
+                    }
+                },
+                
+                canvasToBlob(canvas, type = 'image/png') {
+                    return new Promise((resolve, reject) => {
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                resolve(blob);
+                            } else {
+                                reject(new Error('Failed to create image output.'));
+                            }
+                        }, type);
+                    });
+                },
+                
+                sanitizeFileName(name) {
+                    return (name || 'drawing')
+                        .replace(/[<>:"/\\|?*\x00-\x1F]+/g, '-')
+                        .replace(/\s+/g, '-')
+                        .replace(/-+/g, '-')
+                        .replace(/^-|-$/g, '') || 'drawing';
+                },
+                
+                downloadBlob(blob, filename) {
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    link.click();
+                    setTimeout(() => window.URL.revokeObjectURL(url), 250);
+                },
+                
+                formatFileSize(bytes) {
+                    if (!bytes) return '0 B';
+                    const units = ['B', 'KB', 'MB', 'GB'];
+                    let size = bytes;
+                    let index = 0;
+                    
+                    while (size >= 1024 && index < units.length - 1) {
+                        size /= 1024;
+                        index++;
+                    }
+                    
+                    return `${Math.round(size * 100) / 100} ${units[index]}`;
+                },
+                
+                // Coordinates
+                downloadCoordinates() {
+                    this.syncCurrentPageState();
+                    
+                    const currentPage = this.pages[this.currentPageIndex] || this.createPage(null, this.currentPageIndex);
+                    const payload = {
+                        version: '3.0',
+                        documentName: this.documentName,
+                        pageCount: this.pageCount,
+                        currentPageIndex: this.currentPageIndex,
+                        numberingMode: this.numberingMode,
+                        markerSize: this.markerSize,
+                        timestamp: Date.now(),
+                        pages: this.pages.map((page, index) => ({
+                            pageNumber: index + 1,
+                            markers: this.deepClone(page.markers || []),
+                            pngOverlays: this.deepClone(page.pngOverlays || []),
+                            textElements: this.deepClone(page.textElements || []),
+                            nextIntegerMarker: page.nextIntegerMarker
+                        })),
+                        markers: this.deepClone(currentPage.markers || []),
+                        pngOverlays: this.deepClone(currentPage.pngOverlays || []),
+                        textElements: this.deepClone(currentPage.textElements || [])
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                    this.downloadBlob(blob, `${this.sanitizeFileName(this.documentName || 'markers')}-layout.json`);
+                },
+                
+                handleCoordinatesUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            this.loadCoordinates(data);
+                        } catch (error) {
+                            alert('Error: Invalid layout file.');
+                        }
+                    };
+                    reader.readAsText(file);
+                    event.target.value = '';
+                },
+                
+                loadCoordinates(data) {
+                    const hasPages = Array.isArray(data.pages) && data.pages.length > 0;
+                    this.numberingMode = data.numberingMode === 'restart' ? 'restart' : 'continuous';
+                    if (data.markerSize) {
+                        this.markerSize = data.markerSize;
+                    }
+                    this.documentName = data.documentName || this.documentName;
+                    
+                    if (hasPages) {
+                        if (!this.pages.length) {
+                            const hasImages = data.pages.every((page) => page.imageSrc || page.src);
+                            if (!hasImages) {
+                                alert('Upload the image or PDF first, then load the layout JSON.');
+                                return;
+                            }
+                            
+                            this.setPages(data.pages.map((page) => ({
+                                imageSrc: page.imageSrc || page.src || null,
+                                markers: page.markers || [],
+                                pngOverlays: page.pngOverlays || [],
+                                textElements: page.textElements || []
+                            })), {
+                                currentPageIndex: Number.isInteger(data.currentPageIndex) ? data.currentPageIndex : 0,
+                                resetHistory: true,
+                                resetViewport: true
+                            });
+                        } else {
+                            const pageLimit = Math.min(this.pages.length, data.pages.length);
+                            
+                            for (let index = 0; index < pageLimit; index++) {
+                                const incomingPage = data.pages[index] || {};
+                                this.pages[index].markers = this.deepClone(incomingPage.markers || []);
+                                this.pages[index].pngOverlays = this.deepClone(incomingPage.pngOverlays || []);
+                                this.pages[index].textElements = this.deepClone(incomingPage.textElements || []);
+                            }
+                            
+                            if (data.pages.length > this.pages.length) {
+                                const extraPages = data.pages.slice(this.pages.length);
+                                const canAppendPages = extraPages.every((page) => page.imageSrc || page.src);
+                                
+                                if (canAppendPages) {
+                                    extraPages.forEach((page, extraIndex) => {
+                                        this.pages.push(this.normalizePage({
+                                            imageSrc: page.imageSrc || page.src || null,
+                                            markers: page.markers || [],
+                                            pngOverlays: page.pngOverlays || [],
+                                            textElements: page.textElements || []
+                                        }, this.pages.length + extraIndex));
+                                    });
+                                }
+                            }
+                            
+                            if (data.pages.length !== this.pages.length) {
+                                alert('Layout loaded. Page counts differ, so only matching pages were applied.');
+                            }
+                            
+                            const requestedPageIndex = Number.isInteger(data.currentPageIndex)
+                                ? data.currentPageIndex
+                                : this.currentPageIndex;
+                            this.currentPageIndex = Math.min(requestedPageIndex, this.pages.length - 1);
+                            this.recalculateAllNextIntegerMarkers();
+                            this.loadCurrentPageState(false);
+                            this.history = [];
+                            this.historyIndex = -1;
+                        }
+                    } else {
+                        if (!this.imageLoaded) {
+                            alert('Upload an image or PDF before loading this layout file.');
+                            return;
+                        }
+                        
+                        this.markers = this.deepClone(data.markers || []);
+                        this.pngOverlays = this.deepClone(data.pngOverlays || []);
+                        this.textElements = this.deepClone(data.textElements || []);
+                        this.syncCurrentPageState();
+                    }
+                    
+                    this.saveToHistory();
+                    alert('Layout loaded successfully.');
+                }
+            };
+        }
+    </script>
+</body>
+</html>
