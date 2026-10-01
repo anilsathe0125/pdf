@@ -1,0 +1,613 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>MarkPDF Pro — Table Extractor</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+
+  <!-- App Styles -->
+  <link href="css/app.css" rel="stylesheet"/>
+
+  <!-- PDF.js + JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <header id="topbar">
+    <div class="brand">
+      <div class="brand-name">Mark<span>PDF</span> Pro</div>
+      <div class="brand-sub">Advanced Document Parsing</div>
+    </div>
+
+    <div class="top-sep"></div>
+
+    <div class="status-pill">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-txt">System Idle</span>
+    </div>
+    <span class="pro-badge">Pro</span>
+
+    <div class="top-search">
+      <i class="fa fa-magnifying-glass"></i>
+      <input type="text" id="global-search" placeholder="Search extracted dataâ€¦"/>
+    </div>
+
+    <div class="spacer"></div>
+
+    <button class="icon-btn" id="btn-theme"   title="Toggle theme">
+      <i class="fa fa-circle-half-stroke"></i>
+    </button>
+    <button class="icon-btn" id="btn-strip"   title="Page strip" disabled>
+      <i class="fa fa-film"></i>
+    </button>
+    <button class="icon-btn" id="btn-linemap" title="Line map" disabled>
+      <i class="fa fa-map"></i>
+    </button>
+    <button class="icon-btn danger" id="btn-clear-all" title="Clear everything">
+      <i class="fa fa-trash-can"></i>
+    </button>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       MODE STATUS BAR
+  ══════════════════════════════════════ -->
+  <div id="modebar">
+    <div class="mode-chip mc-v" id="mc-line">
+      <div class="mc-dot"></div> Line Placement Mode
+    </div>
+    <div class="mode-chip mc-v" id="mc-col">
+      <div class="mc-dot"></div> Column Placement Active
+    </div>
+    <div class="mode-chip mc-h" id="mc-area">
+      <div class="mc-dot"></div> Area Selection Active
+    </div>
+    <div class="mode-chip mc-d" id="mc-drag">
+      <div class="mc-dot"></div> Drag Mode
+    </div>
+    <button class="mode-cancel-btn" id="mode-cancel-btn">âœ• Cancel Mode</button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       3-COLUMN LAYOUT
+  ══════════════════════════════════════ -->
+  <div id="layout">
+
+    <!-- ══════════════════════════════════════
+         LEFT SIDEBAR
+    ══════════════════════════════════════ -->
+    <aside id="sb">
+      <div id="sb-body">
+
+        <!-- Navigate -->
+        <div class="acc open" id="acc-nav">
+          <div class="acc-head" onclick="toggleAcc('acc-nav')">
+            <i class="fa fa-compass acc-icon"></i>
+            <span class="acc-title">Navigate</span>
+            <span class="acc-badge" id="nav-pg-badge">-</span>
+            <i class="fa fa-chevron-down acc-chev"></i>
+          </div>
+          <div class="acc-body">
+            <div class="nav-row">
+              <button class="nav-btn" id="prev-pg" disabled>
+                <i class="fa fa-chevron-left"></i>
+              </button>
+              <div class="page-display" id="page-display">page - / -</div>
+              <button class="nav-btn" id="next-pg" disabled>
+                <i class="fa fa-chevron-right"></i>
+              </button>
+            </div>
+            <div class="goto-row">
+              <input class="goto-inp" type="number" id="goto-inp" placeholder="go to pageâ€¦" min="1"/>
+              <button class="goto-btn" id="goto-btn">Go</button>
+            </div>
+            <div class="pg-note" id="pg-note"></div>
+          </div>
+        </div>
+
+        <!-- PDF File Manager -->
+        <div class="acc open" id="acc-files">
+          <div class="acc-head" onclick="toggleAcc('acc-files')">
+            <i class="fa fa-folder-open acc-icon"></i>
+            <span class="acc-title">PDF File Manager</span>
+            <span class="acc-badge" id="pdf-count">0</span>
+            <i class="fa fa-chevron-down acc-chev"></i>
+          </div>
+          <div class="acc-body">
+            <div class="dropzone" id="dropzone">
+              <i class="fa fa-cloud-arrow-up"></i>
+              <div class="dz-title">Drop PDFs here</div>
+              <div class="dz-sub">click to browse Â· multi-file supported</div>
+            </div>
+            <input type="file" id="file-input" accept=".pdf" multiple style="display:none"/>
+
+            <div style="margin-left:6px;margin-bottom:4px;font-size:10.5px;color:var(--t2)">
+              <i class="fa fa-folder" style="margin-right:4px"></i>Detailed PDF Files
+            </div>
+            <div class="pdf-list" id="pdf-list">
+              <div class="empty-hint">No files loaded</div>
+            </div>
+
+            <div class="merge-box">
+              <div class="merge-title"><i class="fa fa-layer-group"></i> Marge Columns</div>
+              <div class="merge-row">
+                <input class="goto-inp" type="text" id="merge-cols-inp" placeholder="Enter column numbers e.g. 3,4" disabled/>
+                <label class="tog" title="Active">
+                  <input type="checkbox" id="merge-cols-on" disabled/>
+                  <span class="knob"></span>
+                </label>
+              </div>
+              <div class="merge-hint">
+                Active: Download ZIP &rarr; <code>com.xlsx</code> (common columns + per-file merged columns). Off: ZIP of CSVs.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Line Map -->
+        <div class="acc open" id="acc-lines">
+          <div class="acc-head" onclick="toggleAcc('acc-lines')">
+            <i class="fa fa-ruler-combined acc-icon"></i>
+            <span class="acc-title">Line Map</span>
+            <span class="acc-badge" id="line-total-badge">0</span>
+            <i class="fa fa-chevron-down acc-chev"></i>
+          </div>
+          <div class="acc-body">
+
+            <div class="add-line-row">
+              <button class="add-btn add-btn-v" id="btn-add-v" disabled>
+                <i class="fa fa-grip-lines-vertical"></i> Column Line
+              </button>
+              <button class="add-btn add-btn-h" id="btn-add-h" disabled>
+                <i class="fa fa-grip-lines"></i> Area Line
+              </button>
+            </div>
+
+            <!-- V lines -->
+            <div class="line-sec-head" style="color:var(--amber)">
+              <i class="fa fa-grip-lines-vertical"></i>
+              Page Column Rules
+              <span class="acc-badge" id="v-line-count" style="margin-left:auto">0</span>
+            </div>
+            <div class="line-list" id="v-line-list">
+              <div class="empty-hint">No column lines - right-click after placing</div>
+            </div>
+
+            <!-- H lines -->
+            <div class="line-sec-head" style="color:var(--purpleL);margin-top:8px">
+              <i class="fa fa-grip-lines"></i>
+              Area Selection Regions
+              <span class="acc-badge" id="h-line-count" style="margin-left:auto">0</span>
+            </div>
+            <div class="line-list" id="h-line-list">
+              <div class="empty-hint">No area lines - right-click after placing</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="acc open" id="acc-settings">
+          <div class="acc-head" onclick="toggleAcc('acc-settings')">
+            <i class="fa fa-sliders acc-icon"></i>
+            <span class="acc-title">Settings</span>
+            <i class="fa fa-minus" style="font-size:10px;color:var(--t2)"></i>
+            <i class="fa fa-chevron-down acc-chev"></i>
+          </div>
+          <div class="acc-body">
+            <div class="tol-header">
+              <span class="tol-label">Finer Row Tolerance (2â€“30px)</span>
+              <span class="tol-val" id="tol-val">8px</span>
+            </div>
+            <input class="tol-range" type="range" id="tol-range" min="2" max="30" value="8"/>
+
+            <div class="settings-list">
+              <div class="set-item">
+                <div class="set-icon"><i class="fa fa-hashtag"></i></div>
+                <div class="set-text">
+                  <div class="set-label">Include Page # Column</div>
+                  <div class="set-desc">Include Page # Column to start marking tables.</div>
+                </div>
+                <label class="tog"><input type="checkbox" id="tog-pgcol"/><span class="knob"></span></label>
+              </div>
+              <div class="set-item">
+                <div class="set-icon"><i class="fa fa-table-list"></i></div>
+                <div class="set-text">
+                  <div class="set-label">First Row = Header</div>
+                  <div class="set-desc">First Row = Header to start marking tables.</div>
+                </div>
+                <label class="tog"><input type="checkbox" id="tog-frh" checked/><span class="knob"></span></label>
+              </div>
+              <div class="set-item">
+                <div class="set-icon"><i class="fa fa-minus"></i></div>
+                <div class="set-text">
+                  <div class="set-label">Skip Empty Rows</div>
+                  <div class="set-desc">Skip Empty Rows teggs descriptions.</div>
+                </div>
+                <label class="tog"><input type="checkbox" id="tog-skip" checked/><span class="knob"></span></label>
+              </div>
+              <div class="set-item">
+                <div class="set-icon"><i class="fa fa-ruler-horizontal"></i></div>
+                <div class="set-text">
+                  <div class="set-label">Show Rulers</div>
+                  <div class="set-desc">Show rulers to onther indicatory.</div>
+                </div>
+                <label class="tog"><input type="checkbox" id="tog-ruler"/><span class="knob"></span></label>
+              </div>
+              <div class="set-item">
+                <div class="set-icon"><i class="fa fa-ellipsis-h"></i></div>
+                <div class="set-text">
+                  <div class="set-label">Show Ghost Lines</div>
+                  <div class="set-desc">Show Ghost Lines from indicators.</div>
+                </div>
+                <label class="tog"><input type="checkbox" id="tog-ghost" checked/><span class="knob"></span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extract & Export -->
+        <div class="acc open" id="acc-export">
+          <div class="acc-head" onclick="toggleAcc('acc-export')">
+            <i class="fa fa-bolt acc-icon"></i>
+            <span class="acc-title">Extract &amp; Export</span>
+            <i class="fa fa-chevron-down acc-chev"></i>
+          </div>
+          <div class="acc-body" style="display:flex;flex-direction:column;gap:4px">
+            <button class="action-btn ab-extract" id="btn-extract" disabled>
+              <i class="fa fa-bolt"></i> Extracted Mark Pages
+            </button>
+            <div class="btn-row">
+              <button class="action-btn ab-cyan" id="btn-tsv" disabled>
+                <i class="fa fa-clipboard"></i> Copy Data (TSV)
+              </button>
+              <button class="action-btn ab-green" id="btn-csv" disabled>
+                <i class="fa fa-download"></i> Download CSV
+              </button>
+            </div>
+            <button class="action-btn ab-orange" id="btn-zip" disabled style="display:none">
+              <i class="fa fa-file-zipper"></i> Download ZIP (all PDFs)
+            </button>
+            <button class="action-btn ab-ghost" id="btn-load-tpl">
+              <i class="fa fa-file-import"></i> Import Template
+            </button>
+            <button class="action-btn ab-red" id="btn-clear-lines">
+              <i class="fa fa-eraser"></i> Clear All Lines
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /sb-body -->
+    </aside><!-- /sb -->
+
+    <!-- ══════════════════════════════════════
+         CENTER - CANVAS
+    ══════════════════════════════════════ -->
+    <main id="center">
+
+      <!-- Canvas toolbar -->
+      <div class="canvas-toolbar">
+        <div class="ctb-group">
+          <button class="ctb-btn" id="btn-zoom-out"   title="Zoom out"><i class="fa fa-minus"></i></button>
+          <span   class="ctb-zoom" id="ctb-zoom">100%</span>
+          <button class="ctb-btn" id="btn-zoom-in"    title="Zoom in"><i class="fa fa-plus"></i></button>
+          <button class="ctb-btn" id="btn-zoom-fit"   title="Fit width"><i class="fa fa-expand"></i></button>
+          <button class="ctb-btn" id="btn-zoom-reset" title="Reset zoom (100%)"><i class="fa fa-compress"></i></button>
+        </div>
+        <div class="ctb-sep"></div>
+        <span class="ctb-label" id="ctb-label">Load a PDF to begin marking</span>
+        <span class="ctb-coord" id="ctb-coord">x:- y:-</span>
+      </div>
+
+      <!-- Page thumbnail strip -->
+      <div id="strip"></div>
+
+      <!-- Canvas area -->
+      <div id="canvas-wrap">
+
+        <!-- Empty state -->
+        <div id="empty-state">
+          <div class="es-icon"><i class="fa fa-file-pdf"></i></div>
+          <h2>No PDF Loaded</h2>
+          <p>Drag &amp; Drop PDFs to start marking tables</p>
+          <button class="es-btn" onclick="document.getElementById('file-input').click()">
+            <i class="fa fa-folder-open"></i>&nbsp; Manage Pages
+          </button>
+        </div>
+
+        <!-- PDF canvas + SVG overlay -->
+        <div id="cc" style="display:none">
+          <canvas id="cv"></canvas>
+          <svg id="svg-overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+
+        <!-- Loading overlay (inside canvas-wrap so it covers just the canvas) -->
+        <div id="loading">
+          <div class="spinner"></div>
+          <div class="lo-txt" id="lo-txt">Loadingâ€¦</div>
+          <div class="lo-bar"><div class="lo-fill"></div></div>
+        </div>
+
+      </div><!-- /canvas-wrap -->
+
+      <!-- Extract progress bar -->
+      <div id="prog-bar">
+        <div class="prog-row">
+          <span id="prog-lbl">Extractingâ€¦</span>
+          <span id="prog-pct">0%</span>
+        </div>
+        <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+      </div>
+
+    </main><!-- /center -->
+
+    <!-- ══════════════════════════════════════
+         RIGHT PANEL - DATA & INSIGHTS
+    ══════════════════════════════════════ -->
+    <aside id="rp">
+
+      <!-- Insights header - always visible -->
+      <div class="rp-insights">
+        <div class="rp-ins-title"><i class="fa fa-chart-bar"></i> Extract Data Insights</div>
+        <div class="ins-grid">
+          <div class="ins-card ic-amber">
+            <div class="ins-label">Total Pages Scanned <i class="fa fa-file-lines" style="font-size:9px"></i></div>
+            <div class="ins-val" id="ins-pages">0</div>
+          </div>
+          <div class="ins-card ic-purple">
+            <div class="ins-label">Total Records Processed <i class="fa fa-database" style="font-size:9px"></i></div>
+            <div class="ins-val" id="ins-rows">0 <span style="font-size:11px;font-weight:500">Rows</span></div>
+          </div>
+          <div class="ins-card ic-cyan">
+            <div class="ins-label">Columns per Row</div>
+            <div class="ins-val" id="ins-cols">0</div>
+          </div>
+          <div class="ins-card ic-green">
+            <div class="ins-label">Non-Empty Cells</div>
+            <div class="ins-val" id="ins-cells">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="rp-tabs">
+        <button class="rp-tab on" data-pane="tbl">Table</button>
+        <button class="rp-tab"    data-pane="raw">CSV</button>
+        <button class="rp-tab"    data-pane="stat">Stats</button>
+        <button class="rp-tab"    data-pane="export">Export</button>
+        
+      </div>
+
+      <!-- ------- TABLE PANE ------- -->
+      <div class="rp-pane on" id="pane-tbl">
+        <div class="rp-search">
+          <input class="rp-search-inp" type="text" id="rp-search-inp" placeholder="Search rowsâ€¦" disabled/>
+          <span class="rp-search-cnt" id="rp-search-cnt"></span>
+        </div>
+        <div id="table-container">
+          <div style="display:flex;flex-direction:column;align-items:center;
+                      justify-content:center;height:180px;gap:8px;color:var(--t2)">
+            <i class="fa fa-table" style="font-size:30px;opacity:.28"></i>
+            <p style="font-size:11px;text-align:center;max-width:190px;line-height:1.55">
+              Mark column lines on pages then click <strong>Extracted Mark Pages</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ------- CSV PANE ------- -->
+      <div class="rp-pane" id="pane-raw">
+        <div id="raw-container">
+          <pre id="raw-output">- no data -</pre>
+        </div>
+      </div>
+
+      <!-- ------- STATS PANE ------- -->
+      <div class="rp-pane" id="pane-stat">
+        <div id="stats-container">
+          <div class="stat-mini-grid">
+            <div class="sc am"><div class="sv" id="sv1">0</div><div class="sl">Total Rows</div></div>
+            <div class="sc pu"><div class="sv" id="sv2">0</div><div class="sl">Columns</div></div>
+            <div class="sc cy"><div class="sv" id="sv3">0</div><div class="sl">Pages</div></div>
+            <div class="sc gr"><div class="sv" id="sv4">0</div><div class="sl">Non-Empty</div></div>
+          </div>
+
+          <!-- Bar chart -->
+          <div class="chart-card">
+            <div class="chart-card-title">
+              Rows Per Page Breakdown
+              <span id="chart-range" style="font-size:9px;color:var(--t2)"></span>
+            </div>
+            <div class="chart-bars" id="chart-bars">
+              <div style="color:var(--t2);font-size:10px;width:100%;text-align:center;align-self:center">
+                Extract data to see chart
+              </div>
+            </div>
+            <!-- Y-axis labels -->
+            <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--t2);margin-top:3px;padding:0 2px">
+              <span>0</span><span>25</span><span>50</span><span>75</span><span>150</span>
+            </div>
+          </div>
+
+          <!-- Activity feed -->
+          <div class="activity-card">
+            <div class="activity-card-title">Recent Data Activity</div>
+            <div class="activity-list" id="activity-list">
+              <div class="empty-hint">No activity yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ------- EXPORT PANE ------- -->
+      <div class="rp-pane" id="pane-export">
+        <div id="export-container">
+          <div class="exp-title">Export Formats</div>
+          <div class="exp-grid">
+            <div class="exp-card ec-csv" id="exp-csv">
+              <i class="fa fa-file-csv"></i><span>CSV</span>
+            </div>
+            <div class="exp-card ec-xls" id="exp-xls">
+              <i class="fa fa-file-excel"></i><span>Excel</span>
+            </div>
+            <div class="exp-card ec-xml" id="exp-xml">
+              <i class="fa fa-file-code"></i><span>XML</span>
+            </div>
+          </div>
+
+          <button class="gen-report-btn" id="btn-gen-report">
+            <i class="fa fa-sparkles"></i> Generate Full Report
+          </button>
+
+          <div class="exp-title" style="margin-top:4px">Templates</div>
+          <button class="action-btn ab-cyan" id="btn-save-tpl" style="margin-bottom:4px">
+            <i class="fa fa-bookmark"></i> Save Line Template
+          </button>
+          <button class="action-btn ab-ghost" id="btn-load-tpl-export">
+            <i class="fa fa-file-import"></i> Load Template
+          </button>
+
+          <!-- Keyboard shortcuts cheat sheet -->
+          <div class="kbd-sheet">
+            <strong>Keyboard shortcuts</strong><br>
+            <code>V</code> Add column line &nbsp;
+            <code>H</code> Add area line<br>
+            <code>←/→</code> Navigate pages &nbsp;
+            <code>Ctrl+E</code> Extract<br>
+            <code>Ctrl+S</code> Save template &nbsp;
+            <code>+/-</code> Zoom<br>
+            <code>Esc</code> Cancel mode &nbsp;
+            <code>Right-click</code> Edit line scope
+          </div>
+        </div>
+      </div>
+
+
+      </aside><!-- /rp -->
+
+  </div><!-- /layout -->
+
+</div><!-- /app -->
+
+
+<!-- ══════════════════════════════════════
+     RIGHT-CLICK CONTEXT MENU
+══════════════════════════════════════ -->
+<div id="ctx-menu" role="menu" aria-label="Line options">
+
+  <div class="ctx-header">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
+      <div>
+        <div class="ctx-line-title" id="ctx-line-title">Line</div>
+        <div class="ctx-line-info"  id="ctx-line-info">pos: - Â· scope: -</div>
+      </div>
+      <button id="ctx-close-btn" title="Close"
+        onclick="window.closeCtxMenu()"
+        style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
+               color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1;
+               flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;
+               justify-content:center;border-radius:4px;transition:all .14s">
+        <i class="fa fa-xmark"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick scope presets -->
+  <div class="ctx-sec-label">Apply to pages</div>
+  <div class="ctx-scope-grid">
+    <button class="csg-btn csg-all"  data-scope="all"     onclick="ctxSetScope('all')">
+      <i class="fa fa-globe"></i> All Pages
+    </button>
+    <button class="csg-btn csg-cur"  data-scope="current" onclick="ctxSetScope('current')">
+      <i class="fa fa-file"></i> This Page
+    </button>
+    <button class="csg-btn csg-odd"  data-scope="odd"     onclick="ctxSetScope('odd')">
+      <i class="fa fa-1"></i> Odd Pages
+    </button>
+    <button class="csg-btn csg-even" data-scope="even"    onclick="ctxSetScope('even')">
+      <i class="fa fa-2"></i> Even Pages
+    </button>
+  </div>
+
+  <!-- Custom range -->
+  <div class="ctx-custom-wrap">
+    <input class="ctx-custom-inp" type="text" id="ctx-custom-inp"
+           placeholder='e.g. "1,3,5-9" or "2-8,12"'/>
+    <div class="ctx-custom-hint">
+      Ranges: <code>1-5</code> &nbsp; List: <code>1,3,7</code> &nbsp;
+      Mix: <code>1-3,7,10-12</code>
+    </div>
+    <button class="ctx-custom-apply" id="ctx-apply-custom">
+      <i class="fa fa-check"></i> Apply Custom Scope
+    </button>
+  </div>
+
+  <div class="ctx-divider"></div>
+
+  <!-- Actions -->
+  <div class="ctx-sec-label">Actions</div>
+  <div class="ctx-actions">
+    <div class="ctx-action" id="ctx-rename" onclick="ctxRename()">
+      <i class="fa fa-pen"></i> Rename line
+      <span class="ctx-kbd">F2</span>
+    </div>
+    <div class="ctx-action" onclick="ctxDuplicate()">
+      <i class="fa fa-copy"></i> Duplicate line
+    </div>
+    <div class="ctx-action" onclick="ctxSnap()">
+      <i class="fa fa-magnet"></i> Snap to nearest text
+    </div>
+    <div class="ctx-action danger" id="ctx-delete" onclick="ctxDeleteLine()">
+      <i class="fa fa-trash"></i> Delete line
+      <span class="ctx-kbd">Del</span>
+    </div>
+  </div>
+
+</div><!-- /ctx-menu -->
+
+
+<!-- ══════════════════════════════════════
+     GENERIC MODAL (Line Map etc.)
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">
+        <i class="fa fa-map"></i>
+        <span id="modal-title-text">Modal</span>
+      </div>
+      <button class="modal-close" onclick="window.appUI.closeModal()">
+        <i class="fa fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     TOASTS
+══════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+
+<!-- ══════════════════════════════════════
+     APP SCRIPTS (ES Modules)
+══════════════════════════════════════ -->
+<!-- app entrypoint -->
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>
+
